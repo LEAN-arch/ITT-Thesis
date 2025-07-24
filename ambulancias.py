@@ -309,9 +309,9 @@ class AIEvolutionPage(AbstractPage):
             **Justificación Científica:** Es un modelo computacionalmente muy eficiente y que a menudo funciona sorprendentemente bien, incluso cuando su suposición de independencia no se cumple estrictamente. Se incluye para evaluar si un modelo probabilístico simple, a pesar de sus fuertes suposiciones, puede capturar la señal principal del problema.
 
             ---
-            **4. Gradient Boosting (LightGBM)**
+            **4. Gradient Boosting (LightGBM & XGBoost)**
             
-            **Fundamento:** LightGBM es una implementación de vanguardia del **Gradient Boosting**, un método de ensamblaje que, a diferencia de Random Forest (que utiliza *bagging*), se basa en el **boosting**. Construye modelos de forma secuencial, donde cada nuevo modelo se enfoca en corregir los errores cometidos por el ensamblaje de los modelos anteriores.
+            **Fundamento:** Estos modelos representan la vanguardia del **Gradient Boosting**, un método de ensamblaje que, a diferencia de Random Forest (que utiliza *bagging*), se basa en el **boosting**. Construye modelos de forma secuencial, donde cada nuevo modelo se enfoca en corregir los errores cometidos por el ensamblaje de los modelos anteriores.
             
             **Formulación Matemática:** El modelo se construye de forma aditiva. Si $F_{t-1}(x)$ es el ensamblaje de $t-1$ árboles, el nuevo modelo $F_t(x)$ se define como:
             """)
@@ -323,22 +323,33 @@ class AIEvolutionPage(AbstractPage):
             st.markdown(r"""
             Entrenar un árbol para que se ajuste a estos residuos es una forma de realizar un descenso por gradiente en el espacio de las funciones.
             
-            **Justificación Científica:** LightGBM representa el estado del arte para datos tabulares. Se incluye para establecer un **límite superior de rendimiento práctico**. Su capacidad para manejar un gran número de características, su eficiencia (utiliza histogramas para encontrar los mejores splits) y su inclusión de regularización lo convierten en un candidato extremadamente fuerte para un modelo de producción final. Su rendimiento en comparación con el Random Forest de la tesis es una medida clave del potencial de mejora.
+            **Justificación Científica:** LightGBM y XGBoost son consistentemente los modelos de mejor rendimiento para datos tabulares. Se incluyen para establecer un **límite superior de rendimiento práctico**. Su capacidad para manejar un gran número de características, su eficiencia (utilizan histogramas para encontrar los mejores splits) y su inclusión de regularización los convierten en candidatos extremadamente fuertes. Incluirlos a ambos permite contrastar las dos implementaciones más dominantes del gradient boosting.
             """)
         if st.button("▶️ Entrenar y Comparar Clasificadores"):
-            with st.spinner("Entrenando 5 modelos distintos... (puede requerir instalar lightgbm)"):
+            with st.spinner("Entrenando 6 modelos distintos... (puede requerir instalar lightgbm y xgboost)"):
                 try:
                     import lightgbm as lgb
+                    import xgboost as xgb
                 except ImportError:
-                    st.error("Por favor instale LightGBM: pip install lightgbm")
+                    st.error("Por favor instale las librerías avanzadas: pip install lightgbm xgboost")
                     return
                     
                 X, y = make_classification(n_samples=2000, n_features=15, n_informative=8, n_classes=3, random_state=42)
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-                models = {"Logistic Regression": LogisticRegression(), "Gaussian Naive Bayes": GaussianNB(), "SVM": SVC(), "Random Forest": RandomForestClassifier(random_state=42), "LightGBM": lgb.LGBMClassifier(random_state=42, verbosity=-1)}
+                
+                models = {
+                    "Logistic Regression": LogisticRegression(), 
+                    "Gaussian Naive Bayes": GaussianNB(), 
+                    "SVM": SVC(), 
+                    "Random Forest": RandomForestClassifier(random_state=42), 
+                    "LightGBM": lgb.LGBMClassifier(random_state=42, verbosity=-1),
+                    "XGBoost": xgb.XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='mlogloss')
+                }
+
                 results = {name: accuracy_score(y_test, model.fit(X_train, y_train).predict(X_test)) for name, model in models.items()}
                 df_results = pd.DataFrame.from_dict(results, orient='index', columns=['Accuracy']).sort_values('Accuracy', ascending=False).reset_index()
-                df_results.rename(columns={'index':'Modelo'}, inplace=True)
+                df_results.rename(columns={'index': 'Modelo'}, inplace=True)
+                
                 fig = px.bar(df_results, x='Modelo', y='Accuracy', title='Comparación de Precisión de Clasificadores', text_auto='.3%')
                 st.plotly_chart(fig, use_container_width=True)
 
