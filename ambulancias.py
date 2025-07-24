@@ -18,6 +18,16 @@ from sklearn.metrics import accuracy_score
 from abc import ABC, abstractmethod
 
 # ==============================================================================
+# PAGE CONFIGURATION (RUNS ONLY ONCE)
+# ==============================================================================
+# This is the main fix: Call st.set_page_config() here, at the top level.
+st.set_page_config(
+    page_title="Sistema de Despacho de Ambulancias",
+    page_icon="🚑",
+    layout="wide"
+)
+
+# ==============================================================================
 # 1. UI COMPONENTS & HELPER FUNCTIONS
 # ==============================================================================
 def render_mathematical_foundations():
@@ -84,9 +94,12 @@ class AbstractPage(ABC):
     def __init__(self, title, icon):
         self.title = title
         self.icon = icon
+    
     @abstractmethod
     def render(self) -> None:
-        st.set_page_config(page_title=self.title, page_icon=self.icon, layout="wide")
+        # This is the second part of the fix:
+        # We only set the title, which CAN be called on every re-run.
+        # st.set_page_config() has been removed from here.
         st.title(f"{self.icon} {self.title}")
 
 class ThesisSummaryPage(AbstractPage):
@@ -539,7 +552,7 @@ class AIEvolutionPage(AbstractPage):
             **2. Formulación Matemática del Aprendizaje por Refuerzo**
 
             El problema de despacho se formaliza como un **Proceso de Decisión de Markov (MDP)**, definido por la tupla $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$:
-            - $\mathcal{S}$ (Espacio de Estados): Una representación del sistema en un momento $t$. Incluye la ubicación y estado (libre/ocupada) de cada ambulancia, la lista de llamadas en espera con sus prioridades y ubicaciones, y el pronóstico de demanda a corto plazo.
+            - $\mathcal{S}$ (Espacio de Estados): Una representation del sistema en un momento $t$. Incluye la ubicación y estado (libre/ocupada) de cada ambulancia, la lista de llamadas en espera con sus prioridades y ubicaciones, y el pronóstico de demanda a corto plazo.
             - $\mathcal{A}$ (Espacio de Acciones): El conjunto de decisiones que el agente puede tomar. Por ejemplo: `asignar(ambulancia_j, llamada_i)` o `reubicar(ambulancia_k, base_l)`.
             - $P(s'|s,a)$: La función de probabilidad de transición de estado. Describe la probabilidad de llegar al estado $s'$ si se toma la acción $a$ en el estado $s$. En nuestro caso, esta función es el **simulador de SimPy**.
             - $R(s,a,s')$: La función de recompensa. Una señal escalar que el agente recibe después de cada acción. Debe estar diseñada para incentivar el comportamiento deseado. Por ejemplo, una recompensa negativa proporcional al tiempo de respuesta: $R = -T_{\text{respuesta}}$.
