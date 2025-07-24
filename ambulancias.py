@@ -20,7 +20,6 @@ from abc import ABC, abstractmethod
 # ==============================================================================
 # PAGE CONFIGURATION (RUNS ONLY ONCE)
 # ==============================================================================
-# This is the main fix: Call st.set_page_config() here, at the top level.
 st.set_page_config(
     page_title="Sistema de Despacho de Ambulancias",
     page_icon="🚑",
@@ -97,9 +96,6 @@ class AbstractPage(ABC):
     
     @abstractmethod
     def render(self) -> None:
-        # This is the second part of the fix:
-        # We only set the title, which CAN be called on every re-run.
-        # st.set_page_config() has been removed from here.
         st.title(f"{self.icon} {self.title}")
 
 class ThesisSummaryPage(AbstractPage):
@@ -234,9 +230,13 @@ class OptimizationPage(AbstractPage):
                 centroids = st.session_state.centroids_df.copy()
                 np.random.seed(0)
                 optimized_indices = np.random.choice(centroids.index, size=min(num_ambulances, len(centroids)), replace=False)
-                optimized_bases = centroids.iloc[optimized_indices]
+                
+                # FIX: Add .copy() here to prevent the SettingWithCopyWarning.
+                optimized_bases = centroids.iloc[optimized_indices].copy()
+                
                 optimized_bases['nombre'] = [f'Estación Optimizada {i+1}' for i in range(len(optimized_bases))]
                 optimized_bases['tipo'] = 'Optimizada'
+                
                 _, bases_actuales = load_base_data()
                 all_bases = pd.concat([bases_actuales, optimized_bases], ignore_index=True)
                 st.session_state.optimized_bases_df = all_bases
