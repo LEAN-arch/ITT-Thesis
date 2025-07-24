@@ -26,8 +26,8 @@ simpy
 # completeness of the future development environment.
 
 # For Reinforcement Learning
-stable-baselines3
+#stable-baselines3
 
 # For Graph Neural Networks
 # Note: This will also install PyTorch as a dependency.
-torch-geometric
+#torch-geometric
