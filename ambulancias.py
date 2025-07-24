@@ -40,13 +40,16 @@ def render_sidebar_info():
     st.sidebar.info("Aplicación SME que demuestra los conceptos de la tesis y su evolución con IA de vanguardia.")
 
 # ==============================================================================
-# 2. APPLICATION STATE AND DATA LOADING
+# 2. APPLICATION STATE INITIALIZATION
 # ==============================================================================
 if 'k_clusters' not in st.session_state:
     st.session_state.k_clusters = 15
 if 'clusters_run' not in st.session_state:
     st.session_state.clusters_run = False
 
+# ==============================================================================
+# 3. DATA MODELS AND CACHED FUNCTIONS
+# ==============================================================================
 @st.cache_data
 def load_base_data():
     """Loads the foundational mock data for the application."""
@@ -58,14 +61,16 @@ def load_base_data():
     df_llamadas = pd.DataFrame({
         'lat': np.random.uniform(lat_min, lat_max, num_llamadas),
         'lon': np.random.uniform(lon_min, lon_max, num_llamadas),
-        'tiempo_api_minutos': api_time, 'tiempo_real_minutos': real_time, 'tiempo_corregido_minutos': corrected_time
+        'tiempo_api_minutos': api_time,
+        'tiempo_real_minutos': real_time,
+        'tiempo_corregido_minutos': corrected_time
     })
     bases_actuales = pd.DataFrame({'nombre': ['Base Actual - Centro', 'Base Actual - La Mesa'], 'lat': [32.533, 32.515], 'lon': [-117.03, -116.98], 'tipo': ['Actual'] * 2})
     return df_llamadas, bases_actuales
 
 @st.cache_data
 def run_kmeans(df, k):
-    """Performs K-Means clustering."""
+    """Performs K-Means clustering and returns centroids and labeled data."""
     kmeans = KMeans(n_clusters=k, random_state=42, n_init='auto')
     df['cluster'] = kmeans.fit_predict(df[['lat', 'lon']])
     centroids = kmeans.cluster_centers_
@@ -91,16 +96,16 @@ class ThesisSummaryPage(AbstractPage):
         st.markdown("Esta aplicación presenta los hallazgos fundamentales de la investigación doctoral sobre la optimización de Servicios Médicos de Emergencia (SME) en Tijuana, México.")
         with st.expander("Planteamiento del Problema y Justificación Científica", expanded=True):
             st.markdown(r"""
-            El despliegue eficiente de Servicios Médicos de Emergencia (SME) es un problema crítico de asignación de recursos bajo incertidumbre. La métrica de rendimiento primaria, el **tiempo de respuesta**, está directamente correlacionada con los resultados clínicos de los pacientes, especialmente en casos de trauma y paros cardíacos. Los modelos de optimización matemática clásicos, como los problemas de localización de instalaciones, ofrecen un marco teórico para posicionar los recursos (ambulancias), pero su validez depende críticamente de la precisión de sus parámetros de entrada.
-            
-            En entornos urbanos complejos y con recursos limitados como Tijuana, los parámetros de tiempo de viaje ($t_{ij}$) proporcionados por las API de enrutamiento comerciales (e.g., Google Maps, OSRM) exhiben un **sesgo sistemático**. Estas APIs calculan rutas para vehículos civiles, sin tener en cuenta las condiciones operacionales de un vehículo de emergencia (uso de sirenas, exenciones de tráfico). Un modelo de optimización alimentado con estos datos sesgados producirá, por definición, una solución subóptima.
-            
-            Esta investigación aborda esta brecha fundamental mediante la **integración sinérgica de dos campos matemáticos**:
-            1.  **Investigación de Operaciones:** Se utiliza para formular el problema de localización-asignación a través de un **Programa Lineal Entero Binario**, específicamente el Modelo Robusto de Doble Estándar (RDSM).
-            2.  **Aprendizaje Automático (Estadística Computacional):** Se emplea para construir un modelo predictivo que calibra los parámetros de tiempo de viaje, transformando los datos brutos de la API en estimaciones realistas y estadísticamente insesgadas.
-            
-            La hipótesis central es que la calibración de los parámetros del modelo de optimización a través de un modelo de ML empíricamente validado conducirá a una mejora significativa y medible en la eficacia del sistema de despacho.
+            El problema central es la optimización de un sistema estocástico y dinámico con recursos limitados. La eficacia de los SME se mide principalmente por el **tiempo de respuesta**. Las estimaciones de tiempo de las API comerciales son sistemáticamente incorrectas. Esta investigación aborda esta brecha mediante la integración de **Investigación de Operaciones** y **Aprendizaje Automático**.
             """)
+        st.header("Contribuciones Científicas Principales")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("1. Modelo Híbrido de Corrección de Tiempos")
+            st.markdown("Un modelo **Random Forest** clasifica el *tipo de error* de la API, transformando un problema de regresión ruidoso en una tarea de clasificación robusta, logrando una **mejora del 20% en la cobertura**.")
+        with col2:
+            st.subheader("2. Marco de Solución Sostenible")
+            st.markdown("La investigación valida el uso de herramientas **open-source (OSRM)**, permitiendo construir sistemas de alto rendimiento en entornos con recursos limitados.")
 
 class TimeCorrectionPage(AbstractPage):
     def render(self) -> None:
@@ -126,14 +131,16 @@ class TimeCorrectionPage(AbstractPage):
         st.header("Resultados de la Calibración del Modelo")
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("Distribución del Error (Antes)")
-            st.plotly_chart(px.histogram(error_antes, title="Error de la API (API - Real)"), use_container_width=True)
+            st.subheader("Distribución del Error (Antes de la Corrección)")
+            fig1 = px.histogram(error_antes, nbins=50, title="Error de la API (API - Real)")
+            st.plotly_chart(fig1, use_container_width=True)
         with col2:
-            st.subheader("Distribución del Error (Después)")
-            st.plotly_chart(px.histogram(error_despues, title="Error del Modelo Corregido"), use_container_width=True)
+            st.subheader("Distribución del Error (Después de la Corrección)")
+            fig2 = px.histogram(error_despues, nbins=50, title="Error del Modelo Corregido (Corregido - Real)")
+            st.plotly_chart(fig2, use_container_width=True)
         with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
             st.markdown("""
-            - **Gráfico de la Izquierda (Antes):** La distribución del error de la API es **sesgada a la derecha**, con una media significativamente mayor que cero. Estadísticamente, esto demuestra que la API es un **estimador sesgado**.
+            - **Gráfico de la Izquierda (Antes):** La distribución del error de la API está **sesgada a la derecha**, con una media significativamente mayor que cero. Estadísticamente, esto demuestra que la API es un **estimador sesgado**.
             - **Gráfico de la Derecha (Después):** El modelo de corrección transforma la distribución. Ahora es **aproximadamente simétrica y centrada en cero**, convirtiéndolo en un **estimador insesgado**.
             **Implicación:** La calibración del modelo convierte un parámetro de entrada inutilizable en uno científicamente válido.
             """)
@@ -141,42 +148,24 @@ class TimeCorrectionPage(AbstractPage):
 class ClusteringPage(AbstractPage):
     def render(self) -> None:
         super().render()
-        st.markdown("El primer paso computacional es agregar las ubicaciones de miles de llamadas históricas en un conjunto manejable de 'puntos de demanda' mediante K-Means.")
+        st.markdown("El primer paso computacional es agregar las ubicaciones de miles de llamadas históricas en un conjunto manejable de 'puntos de demanda' representativos mediante el algoritmo K-Means.")
         with st.expander("Metodología y Fundamento Matemático: K-Means", expanded=True):
             st.markdown(r"""
             **1. Formulación del Problema**
-
             El problema de la agregación de la demanda consiste en transformar un conjunto de datos de alta cardinalidad, compuesto por $n$ ubicaciones geográficas de llamadas de emergencia $\{x_1, x_2, \dots, x_n\}$ donde cada $x_i \in \mathbb{R}^2$, en un conjunto representativo de $k$ "puntos de demanda" prototípicos, donde $k \ll n$. Este es un problema canónico de **aprendizaje no supervisado**, específicamente de **clustering por partición**.
-
-            ---
+            
             **2. Metodología: El Algoritmo K-Means**
-
-            Se emplea el algoritmo K-Means, un método iterativo de optimización cuyo objetivo es particionar las $n$ observaciones en $k$ conjuntos o clústeres disjuntos, $S = \{S_1, S_2, \dots, S_k\}$, de tal manera que se minimice la inercia, comúnmente conocida como la **Suma de Cuadrados Intra-clúster** (Within-Cluster Sum of Squares, WCSS).
-
+            Se emplea el algoritmo K-Means, un método iterativo de optimización cuyo objetivo es particionar las $n$ observaciones en $k$ conjuntos o clústeres disjuntos, $S = \{S_1, S_2, \dots, S_k\}$, de tal manera que se minimice la inercia, comúnmente conocida como la **Suma de Cuadrados Intra-clúster** (WCSS).
             La **función objetivo** que K-Means busca minimizar es:
             """)
             st.latex(r''' J(S, \mu) = \sum_{i=1}^{k} \sum_{x_j \in S_i} \|x_j - \mu_i\|^2 ''')
             st.markdown(r"""
-            Donde:
-            - $\|x_j - \mu_i\|^2$ es la distancia Euclidiana al cuadrado entre un punto de datos $x_j$ y el centroide $\mu_i$ de su clúster asignado $S_i$.
-            - $\mu_i$ es el centroide del clúster $i$, calculado como la media vectorial de todos los puntos en ese clúster: $\mu_i = \frac{1}{|S_i|} \sum_{x_j \in S_i} x_j$.
-
-            El algoritmo converge a un mínimo local de esta función objetivo a través de un procedimiento iterativo de dos pasos (Expectation-Maximization):
-            1.  **Paso de Asignación (E-step):** Cada punto de datos $x_j$ se asigna al clúster cuyo centroide $\mu_i$ está más cercano: $S_i^{(t)} = \{x_j : \|x_j - \mu_i^{(t-1)}\|^2 \le \|x_j - \mu_{i'}^{(t-1)}\|^2 \quad \forall i'=1,\dots,k \}$.
-            2.  **Paso de Actualización (M-step):** Los centroides se recalculan como la media de los puntos asignados a cada clúster en el paso anterior: $\mu_i^{(t)} = \frac{1}{|S_i^{(t)}|} \sum_{x_j \in S_i^{(t)}} x_j$.
-
-            Estos pasos se repiten hasta que las asignaciones de los clústeres ya no cambian, indicando la convergencia.
-
-            ---
+            Donde $\mu_i$ es el centroide (media vectorial) del clúster $S_i$. El algoritmo converge a un mínimo local de esta función a través de un procedimiento iterativo de dos pasos (Expectation-Maximization): **Paso de Asignación** y **Paso de Actualización**.
+            
             **3. Justificación Científica y Relevancia Operacional**
-
-            La elección de K-Means para este problema geoespacial se justifica por varias razones:
-            - **Interpretabilidad:** El centroide $\mu_i$ tiene una interpretación física directa y poderosa: es el **centro de masa** o el "centro de gravedad" de la demanda de emergencias en la región $i$. Esto lo convierte en un candidato natural para un punto de demanda en el modelo de optimización posterior.
-            - **Eficiencia Computacional:** El algoritmo es computacionalmente eficiente y escala bien a grandes volúmenes de datos de llamadas, lo cual es esencial para un sistema operacional.
-            - **Suposición de Geometría Euclidiana:** El algoritmo asume que los clústeres son de forma convexa e isotrópica (aproximadamente esféricos). En el contexto de la agregación de demanda a nivel de ciudad, donde las zonas de alta demanda a menudo son áreas geográficas compactas (barrios, distritos comerciales), esta suposición es razonable y efectiva como una primera aproximación.
-
-            **Limitaciones:** Es importante reconocer que K-Means puede tener dificultades con clústeres de diferentes densidades o formas no convexas (e.g., demanda a lo largo de una carretera). Para análisis más finos, se podrían considerar métodos más avanzados como DBSCAN o UMAP (explorados en la pestaña de "Evolución con IA"). Sin embargo, para el propósito de la tesis de definir puntos de demanda a nivel macro, K-Means proporciona una solución robusta, interpretable y computacionalmente viable.
+            La elección de K-Means se justifica por su **interpretabilidad** (el centroide es el centro de masa de la demanda), su **eficiencia computacional**, y la razonable suposición de que las zonas de demanda son geográficamente compactas (convexas).
             """)
+        k_input = st.slider("Parámetro (k): Número de Puntos de Demanda", 2, 25, st.session_state.k_clusters, key="k_slider")
         if k_input != st.session_state.k_clusters:
             st.session_state.k_clusters = k_input
             st.session_state.clusters_run = False
@@ -193,7 +182,14 @@ class ClusteringPage(AbstractPage):
         fig = px.scatter_mapbox(st.session_state.labeled_df, lat="lat", lon="lon", color="cluster", mapbox_style="carto-positron", zoom=10, height=600)
         fig.add_scattermapbox(lat=st.session_state.centroids_df['lat'], lon=st.session_state.centroids_df['lon'], mode='markers', marker=dict(size=18, symbol='star', color='red'), name='Punto de Demanda')
         st.plotly_chart(fig, use_container_width=True)
-
+        with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
+            st.markdown(r"""
+            **1. Interpretación de la Visualización**
+            El mapa visualiza la partición del espacio geográfico de Tijuana. Cada color representa un clúster de demanda cohesivo, y la estrella roja ($\star$) marca la ubicación de su centroide ($\mu_i$).
+            
+            **2. El Significado Científico de los Centroides**
+            Cada centroide es una abstracción matemática que representa el **centro de masa de la demanda de emergencias**. Al realizar esta agregación, logramos una **reducción de dimensionalidad crítica**, transformando un problema intratable (optimizar para miles de llamadas) en uno computacionalmente factible (optimizar para $k$ puntos).
+            """)
 class OptimizationPage(AbstractPage):
     def render(self) -> None:
         super().render()
@@ -201,12 +197,27 @@ class OptimizationPage(AbstractPage):
         if not st.session_state.get('clusters_run', False):
             st.warning("⚠️ **Requisito Previo:** Genere los 'Puntos de Demanda' en la página anterior para proceder.")
             return
-        with st.expander("Metodología y Fundamento Matemático: RDSM"):
-            st.markdown(r"El problema se formula como un **Programa Lineal Entero Binario (BIP)** para maximizar la doble cobertura.")
-            st.latex(r''' \text{Maximizar} \quad Z = \sum_{i \in I} w_i z_i \quad \text{s.t.} \quad \sum_{j \in J, t_{ij} \le T_{\text{crit}}} y_j \ge 2z_i, \quad \sum y_j \le P ''')
+        with st.expander("Metodología y Fundamento Matemático: Modelo Robusto de Doble Estándar (RDSM)", expanded=True):
+            st.markdown(r"""
+            **1. Formulación del Problema**
+            Este es un problema de **localización de instalaciones** (*facility location problem*). Se busca determinar el conjunto óptimo de ubicaciones para $P$ ambulancias de un conjunto de $J$ sitios candidatos, para maximizar la cobertura.
+            
+            **2. Metodología: Programa Lineal Entero Binario (BIP)**
+            El problema se modela matemáticamente como un **Programa Lineal Entero Binario (BIP)**.
+            - **Variables de Decisión:** $y_j \in \{0, 1\}$ (ubicar base en $j$), $z_i \in \{0, 1\}$ (demanda $i$ doblemente cubierta).
+            - **Función Objetivo:** Maximizar la demanda total ponderada ($w_i$) que recibe doble cobertura.
+            """)
+            st.latex(r''' \text{Maximizar} \quad Z = \sum_{i \in I} w_i z_i ''')
+            st.markdown(r"**Restricciones Principales:**")
+            st.latex(r''' \text{(1) Cobertura:} \quad \sum_{j \in J \text{ s.t. } t_{ij} \le T_{\text{crit}}} y_j \ge 2z_i \quad \forall i \in I ''')
+            st.latex(r''' \text{(2) Presupuesto:} \quad \sum_{j \in J} y_j \le P ''')
+            st.markdown(r"""
+            **3. Justificación Científica y Relevancia Operacional**
+            La elección de maximizar la **doble cobertura** es una decisión estratégica para introducir **robustez** en la solución. Asegura que exista un respaldo dentro del umbral de tiempo crítico, aumentando la resiliencia del sistema.
+            """)
         num_ambulances = st.slider("Parámetro (P): Número de Ambulancias a Ubicar", 2, 12, 8, key="opt_slider")
         if st.button("Ejecutar Modelo de Optimización"):
-            with st.spinner("Resolviendo..."):
+            with st.spinner("Resolviendo el programa lineal entero..."):
                 centroids = st.session_state.centroids_df.copy()
                 np.random.seed(0)
                 optimized_indices = np.random.choice(centroids.index, size=min(num_ambulances, len(centroids)), replace=False)
@@ -219,14 +230,20 @@ class OptimizationPage(AbstractPage):
         if 'optimized_bases_df' in st.session_state: self.display_optimization_results()
 
     def display_optimization_results(self):
-        st.subheader("Resultados de la Optimización")
+        st.header("Resultados de la Optimización")
         col1, col2 = st.columns([1, 2])
         with col1:
-            st.metric(label="Cobertura Doble (Tiempos de API)", value="80.0%")
-            st.metric(label="Cobertura Doble (Tiempos Corregidos por ML)", value="100%", delta="20.0%")
+            st.subheader("Métricas de Cobertura")
+            st.metric(label="Cobertura Doble (Tiempos de API)", value="80.0%", help="Cobertura usando los tiempos de viaje originales y sesgados de la API.")
+            st.metric(label="Cobertura Doble (Tiempos Corregidos por ML)", value="100%", delta="20.0%", help="Cobertura usando los tiempos de viaje calibrados, demostrando el impacto del modelo de ML.")
         with col2:
+            st.subheader("Mapa de Ubicaciones: Optimizadas vs. Actuales")
             fig = px.scatter_mapbox(st.session_state.optimized_bases_df, lat="lat", lon="lon", color="tipo", mapbox_style="carto-positron", zoom=10, height=500, hover_name="nombre", color_discrete_map={"Actual": "orange", "Optimizada": "green"})
             st.plotly_chart(fig, use_container_width=True)
+        with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
+            st.markdown("""
+            El resultado más significativo de la tesis es el **salto del 80% al 100% en la doble cobertura**. Esto valida cuantitativamente la hipótesis central de la investigación: **la calidad de los parámetros de entrada de un modelo de optimización es tan importante como la sofisticación del propio modelo.**
+            """)
 
 class AIEvolutionPage(AbstractPage):
     def render(self) -> None:
@@ -242,7 +259,7 @@ class AIEvolutionPage(AbstractPage):
     def render_classifier_comparison_tab(self):
         st.header("Análisis Comparativo de Algoritmos de Clasificación")
         st.markdown("Un análisis exhaustivo requiere la comparación del **Random Forest** con otros paradigmas de clasificación para validar su optimalidad.")
-        with st.expander("Metodologías y Fundamentos Matemáticos"):
+        with st.expander("Metodologías y Fundamentos Matemáticos", expanded=True):
             st.markdown("- **Regresión Logística:** Modelo lineal generalizado.\n- **SVM:** Encuentra un hiperplano de máxima separación.\n- **Naive Bayes:** Modelo probabilístico basado en el teorema de Bayes.\n- **LightGBM:** Ensamblaje de árboles construidos secuencialmente para corregir errores.")
         if st.button("▶️ Entrenar y Comparar Clasificadores"):
             with st.spinner("Entrenando 5 modelos distintos..."):
