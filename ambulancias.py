@@ -45,6 +45,7 @@ def render_sidebar_info():
     ---
     *Autora:* **M.C. Noelia Araceli Torres Cortés**
     *Institución:* **Tecnológico Nacional de México / ITT**
+    *Directores:* **Dra. Yazmin Maldonado Robles, Dr. Leonardo Trujillo Reyes**
     """)
     st.sidebar.info("Aplicación SME que demuestra los conceptos de la tesis y su evolución con IA de vanguardia.")
 
@@ -103,19 +104,45 @@ class ThesisSummaryPage(AbstractPage):
     def render(self) -> None:
         super().render()
         st.subheader("Un Resumen Interactivo de la Tesis Doctoral")
-        st.markdown("Esta aplicación presenta los hallazgos fundamentales de la investigación doctoral sobre la optimización de Servicios Médicos de Emergencia (SME) en Tijuana, México.")
-        with st.expander("Planteamiento del Problema y Justificación Científica", expanded=True):
-            st.markdown(r"""
-            El problema central es la optimización de un sistema estocástico y dinámico con recursos limitados. La eficacia de los SME se mide principalmente por el **tiempo de respuesta**. Las estimaciones de tiempo de las API comerciales son sistemáticamente incorrectas. Esta investigación aborda esta brecha mediante la integración de **Investigación de Operaciones** y **Aprendizaje Automático**.
+        st.markdown("""
+        Esta aplicación presenta de manera interactiva los conceptos y hallazgos fundamentales de la investigación doctoral **"Sistema de despacho para ambulancias de la ciudad de Tijuana"**. El objetivo es ilustrar cómo la combinación de **Investigación de Operaciones** y **Aprendizaje Automático** puede mejorar drásticamente la eficiencia de los Servicios Médicos de Emergencia (SME), salvando vidas al reducir los tiempos de respuesta.
+        """)
+        
+        with st.expander("Resumen Oficial de la Tesis (Abstract)", expanded=True):
+            st.info("""
+            **Esta tesis se enfoca en los SMEs de la Cruz Roja de Tijuana (CRT), con el objetivo principal de diseñar un sistema web para la toma de decisiones y optimización de los SMEs prehospitalarios, tomando en cuenta los patrones de servicios históricos.** Se aborda el análisis de datos de la CRT, la estimación de tiempos de viaje con Google Maps y OSRM, y se presenta el modelo **DSM (Double Standard Model)** para maximizar la demanda cubierta. 
+            
+            La contribución central es la **corrección de la estimación del tiempo de viaje** mediante aprendizaje máquina (Random Forest), demostrando que los resultados mejoran la cobertura en un **20% más que sin corrección**. Esto valida el uso de OSRM como una herramienta de código libre viable para la CRT. Finalmente, se diseña un sistema web que integra módulos de agrupamiento de llamadas, ubicación y reubicación, simulación de eventos y corrección de tiempos de viaje para visualizar y analizar escenarios.
             """)
+
+        st.header("Flujo Metodológico de la Investigación")
+        st.markdown("""
+        El trabajo de tesis siguió un proceso estructurado para abordar el problema desde el análisis de datos hasta la implementación y validación de un sistema completo. Cada módulo de esta aplicación corresponde a una etapa clave de la investigación.
+        """)
+        st.graphviz_chart('''
+        digraph {
+            rankdir=TB;
+            node [shape=box, style=rounded, fontname="Helvetica"];
+            
+            A [label="Capítulo 2: Análisis de Datos y Tiempos de Viaje\n- Filtrado de datos históricos de la CRT.\n- Comparación de Google Maps vs. OSRM.\n- Identificación de sesgos sistemáticos en la estimación de tiempos."];
+            B [label="Capítulo 4: Corrección de Tiempos con Machine Learning\n- Formulación del problema como Clasificación.\n- Entrenamiento de un modelo Random Forest para predecir el tipo de error.\n- Validación: mejora del 20% en la cobertura."];
+            C [label="Capítulo 3: Optimización de Ubicaciones\n- Uso de K-Means para agrupar llamadas en puntos de demanda.\n- Aplicación del Modelo Robusto de Doble Estándar (RDSM).\n- Validación con datos de patrullas policíacas."];
+            D [label="Capítulo 5: Diseño del Sistema Web\n- Integración de los módulos anteriores en una herramienta interactiva.\n- Diseño de la arquitectura (MVC) y flujo de usuario.\n- Simulación de despacho y análisis de escenarios."];
+            
+            A -> B [label="El análisis revela la necesidad de corregir los tiempos"];
+            B -> C [label="Parámetros calibrados alimentan el modelo de optimización"];
+            C -> D [label="El modelo de optimización es el núcleo del sistema"];
+        }
+        ''')
+        
         st.header("Contribuciones Científicas Principales")
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("1. Modelo Híbrido de Corrección de Tiempos")
-            st.markdown("Un modelo **Random Forest** clasifica el *tipo de error* de la API, transformando un problema de regresión ruidoso en una tarea de clasificación robusta, logrando una **mejora del 20% en la cobertura**.")
+            st.markdown("Se demuestra que un modelo **Random Forest**, al transformar un problema de regresión de error (predecir minutos de diferencia) en uno de clasificación (predecir el *tipo* de error), es más robusto y efectivo. Este enfoque metodológico resultó en una **mejora del 20% en la cobertura de servicio**, validando la hipótesis central de la tesis.")
         with col2:
-            st.subheader("2. Marco de Solución Sostenible")
-            st.markdown("La investigación valida el uso de herramientas **open-source (OSRM)**, permitiendo construir sistemas de alto rendimiento en entornos con recursos limitados.")
+            st.subheader("2. Marco de Solución Sostenible y de Código Abierto")
+            st.markdown("La investigación valida rigurosamente el uso de herramientas **open-source (OSRM)** como una alternativa viable y sin costo a soluciones comerciales como Google Maps. Se demuestra que, una vez calibrados con el modelo de ML, los tiempos de OSRM son científicamente válidos para la optimización, permitiendo construir sistemas de alto rendimiento en entornos con recursos limitados como la Cruz Roja de Tijuana.")
 
 class TimeCorrectionPage(AbstractPage):
     def render(self) -> None:
@@ -150,9 +177,9 @@ class TimeCorrectionPage(AbstractPage):
             st.plotly_chart(fig2, use_container_width=True)
         with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
             st.markdown("""
-            - **Gráfico de la Izquierda (Antes):** La distribución del error de la API está **sesgada a la derecha**, con una media significativamente mayor que cero. Estadísticamente, esto demuestra que la API es un **estimador sesgado**.
+            - **Gráfico de la Izquierda (Antes):** La distribución del error de la API está **sesgada a la derecha**, con una media significativamente mayor que cero. Estadísticamente, esto demuestra que la API es un **estimador sesgado** y, por lo tanto, no confiable para la optimización.
             - **Gráfico de la Derecha (Después):** El modelo de corrección transforma la distribución. Ahora es **aproximadamente simétrica y centrada en cero**, convirtiéndolo en un **estimador insesgado**.
-            **Implicación:** La calibración del modelo convierte un parámetro de entrada inutilizable en uno científicamente válido.
+            **Implicación Científica:** La calibración del modelo convierte un parámetro de entrada inutilizable en uno científicamente válido. Este paso es el que habilita la mejora del **20% en la cobertura** que se demuestra en la tesis, ya que el modelo de optimización pasa a operar con datos que reflejan la realidad.
             """)
 
 class ClusteringPage(AbstractPage):
@@ -173,7 +200,7 @@ class ClusteringPage(AbstractPage):
             Donde $\mu_i$ es el centroide (media vectorial) del clúster $S_i$. El algoritmo converge a un mínimo local de esta función a través de un procedimiento iterativo de dos pasos (Expectation-Maximization): **Paso de Asignación** y **Paso de Actualización**.
             
             **3. Justificación Científica y Relevancia Operacional**
-            La elección de K-Means se justifica por su **interpretabilidad** (el centroide es el centro de masa de la demanda), su **eficiencia computacional**, y la razonable suposición de que las zonas de demanda son geográficamente compactas (convexas).
+            La elección de K-Means se justifica por su **interpretabilidad** (el centroide es el centro de masa de la demanda), su **eficiencia computacional**, y la razonable suposición de que las zonas de demanda son geográficamente compactas (convexas). En el contexto de la tesis, este método fue validado utilizando criterios como el **índice de Silueta** y **Calinski-Harabasz** para determinar el número óptimo de clústeres.
             """)
         k_input = st.slider("Parámetro (k): Número de Puntos de Demanda", 2, 25, st.session_state.k_clusters, key="k_slider")
         if k_input != st.session_state.k_clusters:
@@ -198,7 +225,7 @@ class ClusteringPage(AbstractPage):
             El mapa visualiza la partición del espacio geográfico de Tijuana. Cada color representa un clúster de demanda cohesivo, y la estrella roja ($\star$) marca la ubicación de su centroide ($\mu_i$).
             
             **2. El Significado Científico de los Centroides**
-            Cada centroide es una abstracción matemática que representa el **centro de masa de la demanda de emergencias**. Al realizar esta agregación, logramos una **reducción de dimensionalidad crítica**, transformando un problema intratable (optimizar para miles de llamadas) en uno computacionalmente factible (optimizar para $k$ puntos).
+            Cada centroide es una abstracción matemática que representa el **centro de masa de la demanda de emergencias**. Al realizar esta agregación, logramos una **reducción de dimensionalidad crítica**, transformando un problema intratable (optimizar para miles de llamadas individuales) en uno computacionalmente factible (optimizar para $k$ puntos representativos). Este paso es fundamental para poder aplicar los modelos de optimización de la Investigación de Operaciones.
             """)
 class OptimizationPage(AbstractPage):
     def render(self) -> None:
@@ -210,7 +237,7 @@ class OptimizationPage(AbstractPage):
         with st.expander("Metodología y Fundamento Matemático: Modelo Robusto de Doble Estándar (RDSM)", expanded=True):
             st.markdown(r"""
             **1. Formulación del Problema**
-            Este es un problema de **localización de instalaciones** (*facility location problem*). Se busca determinar el conjunto óptimo de ubicaciones para $P$ ambulancias de un conjunto de $J$ sitios candidatos, para maximizar la cobertura.
+            Este es un problema de **localización de instalaciones** (*facility location problem*). Se busca determinar el conjunto óptimo de ubicaciones para $P$ ambulancias de un conjunto de $J$ sitios candidatos, para maximizar la cobertura. El modelo utilizado en la tesis es el **Modelo Robusto de Doble Estándar (RDSM)**, una variante del DSM que busca una solución única y robusta a través de diferentes escenarios de demanda (e.g., mañana, tarde, noche).
             
             **2. Metodología: Programa Lineal Entero Binario (BIP)**
             El problema se modela matemáticamente como un **Programa Lineal Entero Binario (BIP)**.
@@ -223,7 +250,7 @@ class OptimizationPage(AbstractPage):
             st.latex(r''' \text{(2) Presupuesto:} \quad \sum_{j \in J} y_j \le P ''')
             st.markdown(r"""
             **3. Justificación Científica y Relevancia Operacional**
-            La elección de maximizar la **doble cobertura** es una decisión estratégica para introducir **robustez** en la solución. Asegura que exista un respaldo dentro del umbral de tiempo crítico, aumentando la resiliencia del sistema.
+            La elección de maximizar la **doble cobertura** es una decisión estratégica para introducir **robustez** en la solución. Asegura que para cada punto de demanda, existan al menos dos ambulancias capaces de llegar dentro del umbral de tiempo crítico. Esto aumenta drásticamente la resiliencia del sistema ante la posibilidad de que la ambulancia más cercana ya esté ocupada en otra emergencia.
             """)
         num_ambulances = st.slider("Parámetro (P): Número de Ambulancias a Ubicar", 2, 12, 8, key="opt_slider")
         if st.button("Ejecutar Modelo de Optimización"):
@@ -247,15 +274,15 @@ class OptimizationPage(AbstractPage):
         col1, col2 = st.columns([1, 2])
         with col1:
             st.subheader("Métricas de Cobertura")
-            st.metric(label="Cobertura Doble (Tiempos de API)", value="80.0%", help="Cobertura usando los tiempos de viaje originales y sesgados de la API.")
-            st.metric(label="Cobertura Doble (Tiempos Corregidos por ML)", value="100%", delta="20.0%", help="Cobertura usando los tiempos de viaje calibrados, demostrando el impacto del modelo de ML.")
+            st.metric(label="Cobertura Doble (Tiempos API sin corregir)", value="83.90%", help="Cobertura usando los tiempos de viaje originales y sesgados de OSRM (Capítulo 4, Tabla 4.12).")
+            st.metric(label="Cobertura Doble (Tiempos Corregidos por ML)", value="100.0%", delta="16.1%", help="Cobertura usando los tiempos de viaje calibrados, demostrando el impacto directo del modelo de ML (Capítulo 4, Tabla 4.12).")
         with col2:
             st.subheader("Mapa de Ubicaciones: Optimizadas vs. Actuales")
             fig = px.scatter_mapbox(st.session_state.optimized_bases_df, lat="lat", lon="lon", color="tipo", mapbox_style="carto-positron", zoom=10, height=500, hover_name="nombre", color_discrete_map={"Actual": "orange", "Optimizada": "green"})
             st.plotly_chart(fig, use_container_width=True)
         with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
             st.markdown("""
-            El resultado más significativo de la tesis es el **salto del 80% al 100% en la doble cobertura**. Esto valida cuantitativamente la hipótesis central de la investigación: **la calidad de los parámetros de entrada de un modelo de optimización es tan importante como la sofisticación del propio modelo.**
+            El resultado más significativo de la tesis es el **salto del 83.9% al 100% en la doble cobertura**. Esto valida cuantitativamente la hipótesis central de la investigación: **la calidad de los parámetros de entrada ($t_{ij}$) de un modelo de optimización es tan o más importante que la sofisticación del propio modelo de optimización.** Al corregir el sesgo sistemático de los tiempos de viaje, se permite al modelo RDSM encontrar una solución genuinamente óptima que es robusta y efectiva en el mundo real.
             """)
 
 # ==============================================================================
