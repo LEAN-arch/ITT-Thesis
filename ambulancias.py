@@ -1,6 +1,8 @@
 # app.py
 # ==============================================================================
 # LIBRARIES
+# Import lightweight libraries at the top for fast startup.
+# Heavy libraries are imported "just-in-time" inside their respective functions.
 # ==============================================================================
 import streamlit as st
 import pandas as pd
@@ -15,6 +17,7 @@ from abc import ABC, abstractmethod
 
 # ==============================================================================
 # 1. UI COMPONENTS & HELPER FUNCTIONS
+# (Integrated directly into the main script to resolve ModuleNotFoundError)
 # ==============================================================================
 def render_mathematical_foundations():
     """Renders a sidebar expander with mathematical context."""
@@ -82,29 +85,35 @@ class ThesisSummaryPage(AbstractPage):
     def render(self) -> None:
         super().render()
         st.subheader("Un Resumen Interactivo de la Tesis Doctoral")
-        st.markdown("Esta aplicación presenta los hallazgos fundamentales de la investigación doctoral sobre la optimización de Servicios Médicos de Emergencia (SME) en Tijuana, México.")
+        st.markdown("Esta aplicación presenta los hallazgos fundamentales de la investigación doctoral sobre la optimización de Servicios Médicos de Emergencia (SME) en Tijuana, México, enmarcando el problema y la solución propuesta.")
         with st.expander("Planteamiento del Problema y Justificación Científica", expanded=True):
             st.markdown(r"""
-            El problema central es la optimización de un sistema estocástico y dinámico con recursos limitados. La eficacia de los SME se mide principalmente por el **tiempo de respuesta**. En entornos como Tijuana, las estimaciones de tiempo de viaje de las API comerciales son sistemáticamente incorrectas.
-            Esta investigación aborda esta brecha mediante la integración de **Investigación de Operaciones** y **Aprendizaje Automático**.
+            El problema central es la optimización de un sistema estocástico y dinámico con recursos limitados. La eficacia de los SME se mide principalmente por el **tiempo de respuesta**, una variable crítica que impacta directamente en la morbilidad y mortalidad de los pacientes. En entornos urbanos complejos como Tijuana, las estimaciones de tiempo de viaje de las API comerciales son sistemáticamente incorrectas, lo que invalida los modelos de optimización estándar.
+            Esta investigación aborda esta brecha fundamental mediante la **integración sinérgica de dos campos matemáticos**:
+            1.  **Investigación de Operaciones:** Para la formulación del problema de localización-asignación.
+            2.  **Aprendizaje Automático:** Para la calibración empírica de los parámetros del modelo a partir de datos históricos, específicamente el tiempo de viaje.
             """)
         st.header("Contribuciones Científicas Principales")
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("1. Modelo Híbrido de Corrección de Tiempos")
-            st.markdown("Un modelo **Random Forest** clasifica el *tipo de error* de la API, transformando un problema de regresión ruidoso en una tarea de clasificación robusta, logrando una **mejora del 20% en la cobertura**.")
+            st.markdown("La contribución metodológica principal es un **modelo de aprendizaje supervisado (Random Forest)** que no predice el tiempo directamente, sino que clasifica el *tipo de error* de la API. Este enfoque de clasificación transforma un problema de regresión ruidoso en una tarea de clasificación más robusta, demostrando una **mejora del 20% en la cobertura** del sistema de optimización resultante.")
         with col2:
             st.subheader("2. Marco de Solución Sostenible")
-            st.markdown("La investigación valida el uso de herramientas **open-source (OSRM)**, permitiendo construir sistemas de alto rendimiento en entornos con recursos limitados.")
+            st.markdown("La investigación valida el uso de **herramientas de código abierto (OSRM)**, demostrando que es posible construir sistemas de optimización de alto rendimiento sin depender de costosas API comerciales. Esto representa una contribución significativa para la implementación de soluciones similares en entornos con recursos limitados.")
 
 class ClusteringPage(AbstractPage):
     def render(self) -> None:
         super().render()
-        st.markdown("El primer paso computacional es agregar las ubicaciones de miles de llamadas históricas en un conjunto manejable de 'puntos de demanda' mediante K-Means.")
+        st.markdown("El primer paso computacional es la reducción de la dimensionalidad de la demanda. Las ubicaciones de miles de llamadas históricas se agregan en un conjunto manejable de 'puntos de demanda' representativos mediante el algoritmo K-Means.")
         with st.expander("Metodología y Fundamento Matemático: K-Means"):
-            st.markdown(r"K-Means particiona $n$ observaciones en $k$ clústeres al minimizar la Suma de Cuadrados Intra-clúster (WCSS):")
+            st.markdown(r"""
+            **Problema:** Particionar un conjunto de $n$ vectores de observación de llamadas $\{x_1, \dots, x_n\}$ en $k$ clústeres $S = \{S_1, \dots, S_k\}$.
+            **Objetivo:** Minimizar la inercia, o la Suma de Cuadrados Intra-clúster (WCSS), definida como la suma de las distancias Euclidianas al cuadrado entre cada punto y el centroide de su clúster asignado.
+            """)
             st.latex(r''' \arg\min_{S} \sum_{i=1}^{k} \sum_{x \in S_i} \|x - \mu_i\|^2 ''')
-        k_input = st.slider("Parámetro (k): Número de Puntos de Demanda", 2, 25, st.session_state.k_clusters)
+            st.markdown(r"Donde $\mu_i$ es el centroide (media vectorial) del clúster $S_i$.")
+        k_input = st.slider("Parámetro (k): Número de Puntos de Demanda a Identificar", 2, 25, st.session_state.k_clusters)
         if k_input != st.session_state.k_clusters:
             st.session_state.k_clusters = k_input
             st.session_state.clusters_run = False
@@ -114,6 +123,7 @@ class ClusteringPage(AbstractPage):
                 labeled_df, centroids_df = run_kmeans(df_llamadas.copy(), st.session_state.k_clusters)
                 st.session_state.labeled_df, st.session_state.centroids_df = labeled_df, centroids_df
                 st.session_state.clusters_run = True
+                st.success(f"{st.session_state.k_clusters} puntos de demanda generados.")
         if st.session_state.clusters_run: self.display_cluster_map()
 
     def display_cluster_map(self):
@@ -125,7 +135,7 @@ class ClusteringPage(AbstractPage):
 class OptimizationPage(AbstractPage):
     def render(self) -> None:
         super().render()
-        st.markdown("Con los puntos de demanda definidos, se resuelve un problema de optimización para determinar la ubicación estratégica de las ambulancias.")
+        st.markdown("Con los puntos de demanda definidos, se formula y resuelve un problema de optimización para determinar la ubicación estratégica de las ambulancias.")
         if not st.session_state.get('clusters_run', False):
             st.warning("⚠️ **Requisito Previo:** Genere los 'Puntos de Demanda' en la página anterior para proceder.")
             return
@@ -200,18 +210,12 @@ class AIEvolutionPage(AbstractPage):
         num_ambulances = st.slider("Parámetro: Número de Ambulancias", 1, 10, 3)
         avg_call_interval = st.slider("Parámetro: Tiempo Promedio Entre Llamadas (min)", 5, 60, 20)
         
-        # CORRECTED SIMULATION LOGIC
+        # This cached function now encapsulates the entire simulation logic safely.
         @st.cache_data
         def run_dispatch_simulation(ambulances, interval, num_calls_to_sim):
-            """
-            This function is now self-contained and safe for Streamlit's reruns.
-            It creates, runs, and returns the result of a fresh SimPy environment.
-            """
             import simpy
             import random
-            
             wait_times = []
-            
             def call_process(env, ambulance_fleet):
                 arrival_time = env.now
                 with ambulance_fleet.request() as request:
@@ -219,22 +223,18 @@ class AIEvolutionPage(AbstractPage):
                     wait_times.append(env.now - arrival_time)
                     service_time = random.uniform(20, 40)
                     yield env.timeout(service_time)
-
             def call_generator(env, ambulance_fleet, interval):
-                for i in range(num_calls_to_sim):
+                for _ in range(num_calls_to_sim):
                     env.process(call_process(env, ambulance_fleet))
                     yield env.timeout(random.expovariate(1.0 / interval))
-
             env = simpy.Environment()
             ambulance_fleet = simpy.Resource(env, capacity=ambulances)
             env.process(call_generator(env, ambulance_fleet, interval))
             env.run()
-            
             return np.mean(wait_times) if wait_times else 0
 
         if st.button("🔬 Ejecutar Simulación"):
             with st.spinner("Simulando..."):
-                # Call the self-contained simulation function
                 avg_wait = run_dispatch_simulation(num_ambulances, avg_call_interval, num_calls_to_sim=500)
                 st.metric("Resultado: Tiempo Promedio de Espera por Ambulancia", f"{avg_wait:.2f} minutos")
 
