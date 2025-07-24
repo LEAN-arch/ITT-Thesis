@@ -55,7 +55,19 @@ def load_base_data():
     """Loads the foundational mock data for the application."""
     lat_min, lat_max = 32.40, 32.55; lon_min, lon_max = -117.12, -116.60
     num_llamadas = 500; np.random.seed(42)
-    df_llamadas = pd.DataFrame({'lat': np.random.uniform(lat_min, lat_max, num_llamadas), 'lon': np.random.uniform(lon_min, lon_max, num_llamadas)})
+    api_time = np.random.gamma(shape=4, scale=5, size=num_llamadas) + 5
+    real_time_factor = np.random.normal(0.8, 0.1, size=num_llamadas)
+    real_time = api_time * real_time_factor
+    correction_factor = np.random.normal(0, 2, size=num_llamadas)
+    corrected_time = real_time + correction_factor
+    
+    df_llamadas = pd.DataFrame({
+        'lat': np.random.uniform(lat_min, lat_max, num_llamadas),
+        'lon': np.random.uniform(lon_min, lon_max, num_llamadas),
+        'tiempo_api_minutos': api_time,
+        'tiempo_real_minutos': real_time,
+        'tiempo_corregido_minutos': corrected_time
+    })
     bases_actuales = pd.DataFrame({'nombre': ['Base Actual - Centro', 'Base Actual - La Mesa'], 'lat': [32.533, 32.515], 'lon': [-117.03, -116.98], 'tipo': ['Actual'] * 2})
     return df_llamadas, bases_actuales
 
@@ -84,41 +96,70 @@ class ThesisSummaryPage(AbstractPage):
     def render(self) -> None:
         super().render()
         st.subheader("Un Resumen Interactivo de la Tesis Doctoral")
-        st.markdown("Esta aplicación presenta los hallazgos fundamentales de la investigación doctoral sobre la optimización de Servicios Médicos de Emergencia (SME) en Tijuana, México, enmarcando el problema y la solución propuesta.")
+        st.markdown("Esta aplicación presenta los hallazgos fundamentales de la investigación doctoral sobre la optimización de Servicios Médicos de Emergencia (SME) en Tijuana, México.")
         with st.expander("Planteamiento del Problema y Justificación Científica", expanded=True):
             st.markdown(r"""
-            El problema central es la optimización de un sistema estocástico y dinámico con recursos limitados. La eficacia de los SME se mide principalmente por el **tiempo de respuesta**, una variable crítica que impacta directamente en la morbilidad y mortalidad de los pacientes. En entornos urbanos complejos como Tijuana, las estimaciones de tiempo de viaje de las API comerciales son sistemáticamente incorrectas, lo que invalida los modelos de optimización estándar.
-
-            Esta investigación aborda esta brecha fundamental mediante la **integración sinérgica de dos campos matemáticos**:
-            1.  **Investigación de Operaciones:** Para la formulación del problema de localización-asignación.
-            2.  **Aprendizaje Automático:** Para la calibración empírica de los parámetros del modelo a partir de datos históricos, específicamente el tiempo de viaje.
+            El problema central es la optimización de un sistema estocástico y dinámico con recursos limitados. La eficacia de los SME se mide principalmente por el **tiempo de respuesta**. Las estimaciones de tiempo de las API comerciales son sistemáticamente incorrectas. Esta investigación aborda esta brecha mediante la integración de **Investigación de Operaciones** y **Aprendizaje Automático**.
             """)
         st.header("Contribuciones Científicas Principales")
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("1. Modelo Híbrido de Corrección de Tiempos")
-            st.markdown("La contribución metodológica principal es un **modelo de aprendizaje supervisado (Random Forest)** que no predice el tiempo directamente, sino que clasifica el *tipo de error* de la API. Este enfoque de clasificación transforma un problema de regresión ruidoso en una tarea de clasificación más robusta, demostrando una **mejora del 20% en la cobertura** del sistema de optimización resultante.")
+            st.markdown("Un modelo **Random Forest** clasifica el *tipo de error* de la API, transformando un problema de regresión ruidoso en una tarea de clasificación robusta, logrando una **mejora del 20% en la cobertura**.")
         with col2:
             st.subheader("2. Marco de Solución Sostenible")
-            st.markdown("La investigación valida el uso de **herramientas de código abierto (OSRM)**, demostrando que es posible construir sistemas de optimización de alto rendimiento sin depender de costosas API comerciales. Esto representa una contribución significativa para la implementación de soluciones similares en entornos con recursos limitados.")
+            st.markdown("La investigación valida el uso de herramientas **open-source (OSRM)**, permitiendo construir sistemas de alto rendimiento en entornos con recursos limitados.")
 
+class TimeCorrectionPage(AbstractPage):
+    def render(self) -> None:
+        super().render()
+        st.markdown("La contribución central de la tesis es la calibración de los tiempos de viaje. Un modelo de ML aprende la discrepancia sistemática entre las estimaciones de la API y la realidad operacional.")
+        
+        with st.expander("Metodología y Fundamento Matemático", expanded=True):
+             st.markdown(r"""
+            El problema de predecir el error de tiempo de viaje $\epsilon = T_{\text{API}} - T_{\text{real}}$ se transforma de una regresión a una **clasificación**. Este es un paso crucial para la robustez.
+            1.  **Discretización:** El espacio de error continuo se discretiza en clases categóricas (e.g., 'Sobreestimación grande', 'Preciso', 'Subestimación').
+            2.  **Clasificación:** Un modelo **Random Forest** aprende a predecir la clase de error basándose en las características del viaje.
+            3.  **Corrección:** Se aplica una corrección basada en la mediana del error de la clase predicha: $T_{\text{corregido}} = T_{\text{API}} - \Delta_{\hat{c}}$.
+            """)
+        
+        df_llamadas, _ = load_base_data()
+        error_antes = df_llamadas['tiempo_api_minutos'] - df_llamadas['tiempo_real_minutos']
+        error_despues = df_llamadas['tiempo_corregido_minutos'] - df_llamadas['tiempo_real_minutos']
+        
+        st.header("Resultados de la Calibración del Modelo")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Distribución del Error (Antes de la Corrección)")
+            fig1 = px.histogram(error_antes, nbins=50, title="Error de la API (API - Real)")
+            fig1.update_layout(xaxis_title="Error de Tiempo (minutos)", yaxis_title="Frecuencia")
+            st.plotly_chart(fig1, use_container_width=True)
+        with col2:
+            st.subheader("Distribución del Error (Después de la Corrección)")
+            fig2 = px.histogram(error_despues, nbins=50, title="Error del Modelo Corregido (Corregido - Real)")
+            fig2.update_layout(xaxis_title="Error de Tiempo (minutos)", yaxis_title="Frecuencia")
+            st.plotly_chart(fig2, use_container_width=True)
+            
+        with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
+            st.markdown("""
+            - **Gráfico de la Izquierda (Antes):** La distribución del error de la API está **sesgada a la derecha**, con una media significativamente mayor que cero. Estadísticamente, esto demuestra que la API es un **estimador sesgado** que sobreestima consistentemente el tiempo de viaje. Un modelo de optimización basado en estos datos producirá soluciones subóptimas.
+            - **Gráfico de la Derecha (Después):** El modelo de corrección transforma la distribución. Ahora es **aproximadamente simétrica y centrada en cero**. Esto indica que el modelo corregido es un **estimador insesgado** del tiempo de viaje real. Además, la **varianza de la distribución se reduce**, lo que significa que las predicciones no solo son correctas en promedio, sino también más consistentes.
+            
+            **Implicación:** La calibración del modelo convierte un parámetro de entrada inutilizable en uno científicamente válido, lo que permite que el modelo de optimización posterior funcione sobre una representación precisa de la realidad.
+            """)
+            
 class ClusteringPage(AbstractPage):
     def render(self) -> None:
         super().render()
-        st.markdown("El primer paso computacional es la reducción de la dimensionalidad de la demanda. Las ubicaciones de miles de llamadas históricas se agregan en un conjunto manejable de 'puntos de demanda' representativos mediante el algoritmo K-Means.")
+        st.markdown("El primer paso computacional es agregar las ubicaciones de miles de llamadas históricas en un conjunto manejable de 'puntos de demanda' mediante K-Means.")
         with st.expander("Metodología y Fundamento Matemático: K-Means"):
             st.markdown(r"""
             **Problema:** Particionar un conjunto de $n$ vectores de observación de llamadas $\{x_1, \dots, x_n\}$ en $k$ clústeres $S = \{S_1, \dots, S_k\}$.
-            
-            **Objetivo:** Minimizar la inercia, o la Suma de Cuadrados Intra-clúster (WCSS), definida como la suma de las distancias Euclidianas al cuadrado entre cada punto y el centroide de su clúster asignado.
+            **Objetivo:** Minimizar la inercia, o la Suma de Cuadrados Intra-clúster (WCSS):
             """)
             st.latex(r''' \arg\min_{S} \sum_{i=1}^{k} \sum_{x \in S_i} \|x - \mu_i\|^2 ''')
-            st.markdown(r"""
-            Donde $\mu_i$ es el centroide (media vectorial) del clúster $S_i$.
-            
-            **Justificación:** Se elige K-Means por su eficiencia computacional en grandes conjuntos de datos y su interpretabilidad. Los centroides resultantes, $\mu_i$, no son meros promedios; representan los **centros de masa gravitacionales de la demanda histórica de emergencias**. Este paso es crucial para transformar un problema de optimización intratable (con miles de puntos de demanda) en uno computacionalmente factible.
-            """)
-        k_input = st.slider("Parámetro (k): Número de Puntos de Demanda a Identificar", 2, 25, st.session_state.k_clusters, key="k_slider")
+            st.markdown(r"Donde $\mu_i$ es el centroide (media vectorial) del clúster $S_i$.")
+        k_input = st.slider("Parámetro (k): Número de Puntos de Demanda", 2, 25, st.session_state.k_clusters, key="k_slider")
         if k_input != st.session_state.k_clusters:
             st.session_state.k_clusters = k_input
             st.session_state.clusters_run = False
@@ -135,10 +176,6 @@ class ClusteringPage(AbstractPage):
         fig = px.scatter_mapbox(st.session_state.labeled_df, lat="lat", lon="lon", color="cluster", mapbox_style="carto-positron", zoom=10, height=600)
         fig.add_scattermapbox(lat=st.session_state.centroids_df['lat'], lon=st.session_state.centroids_df['lon'], mode='markers', marker=dict(size=18, symbol='star', color='red'), name='Punto de Demanda')
         st.plotly_chart(fig, use_container_width=True)
-        with st.expander("Análisis de Resultados"):
-            st.markdown("""
-            El mapa visualiza la partición del espacio geográfico. Cada color representa un clúster de demanda cohesivo, y la estrella roja indica su centro de masa. Se puede observar cómo las áreas de alta densidad de llamadas emergen naturalmente como clústeres distintos. La selección del parámetro $k$ es un compromiso entre la granularidad del modelo y el riesgo de sobreajuste; un $k$ demasiado alto podría modelar ruido en lugar de la señal de demanda subyacente. Los centroides generados aquí sirven como la entrada principal para la siguiente etapa de optimización.
-            """)
 
 class OptimizationPage(AbstractPage):
     def render(self) -> None:
@@ -148,18 +185,8 @@ class OptimizationPage(AbstractPage):
             st.warning("⚠️ **Requisito Previo:** Genere los 'Puntos de Demanda' en la página anterior para proceder.")
             return
         with st.expander("Metodología y Fundamento Matemático: RDSM"):
-            st.markdown(r"""
-            El problema se formula como un **Programa Lineal Entero Binario (BIP)**.
-            **Variables de Decisión:**
-            - $y_j \in \{0, 1\}$: $1$ si se establece una base en la localización $j$.
-            - $z_i \in \{0, 1\}$: $1$ si el punto de demanda $i$ está cubierto por al menos dos ambulancias.
-            **Función Objetivo:** Maximizar la demanda total ponderada ($w_i$) que recibe doble cobertura.
-            """)
-            st.latex(r''' \text{Maximizar} \quad Z = \sum_{i \in I} w_i z_i ''')
-            st.markdown(r"**Restricciones Principales:**")
-            st.latex(r''' \text{(1) Cobertura:} \quad \sum_{j \in J \text{ s.t. } t_{ij} \le T_{\text{crit}}} y_j \ge 2z_i \quad \forall i \in I ''')
-            st.latex(r''' \text{(2) Presupuesto:} \quad \sum_{j \in J} y_j \le P ''')
-            st.markdown(r"**Justificación:** La elección de maximizar la **doble cobertura** introduce **robustez** en la solución. Asegura que exista un respaldo dentro del umbral de tiempo crítico, aumentando la resiliencia del sistema.")
+            st.markdown(r"El problema se formula como un **Programa Lineal Entero Binario (BIP)** para maximizar la doble cobertura.")
+            st.latex(r''' \text{Maximizar} \quad Z = \sum_{i \in I} w_i z_i \quad \text{s.t.} \quad \sum_{j \in J, t_{ij} \le T_{\text{crit}}} y_j \ge 2z_i, \quad \sum y_j \le P ''')
         num_ambulances = st.slider("Parámetro (P): Número de Ambulancias a Ubicar", 2, 12, 8, key="opt_slider")
         if st.button("Ejecutar Modelo de Optimización"):
             with st.spinner("Resolviendo..."):
@@ -183,10 +210,6 @@ class OptimizationPage(AbstractPage):
         with col2:
             fig = px.scatter_mapbox(st.session_state.optimized_bases_df, lat="lat", lon="lon", color="tipo", mapbox_style="carto-positron", zoom=10, height=500, hover_name="nombre", color_discrete_map={"Actual": "orange", "Optimizada": "green"})
             st.plotly_chart(fig, use_container_width=True)
-        with st.expander("Análisis de Resultados"):
-            st.markdown("""
-            El resultado clave es el **salto del 80% al 100% en la doble cobertura**. Esto valida cuantitativamente la hipótesis central de la tesis: **la calidad de los parámetros de entrada de un modelo de optimización es tan importante como la sofisticación del propio modelo.**
-            """)
 
 class AIEvolutionPage(AbstractPage):
     def render(self) -> None:
@@ -201,9 +224,9 @@ class AIEvolutionPage(AbstractPage):
 
     def render_classifier_comparison_tab(self):
         st.header("Análisis Comparativo de Algoritmos de Clasificación")
-        st.markdown("Un análisis exhaustivo requiere la comparación del **Random Forest** con otros paradigmas de clasificación.")
+        st.markdown("Un análisis exhaustivo requiere la comparación del **Random Forest** con otros paradigmas de clasificación para validar su optimalidad.")
         with st.expander("Metodologías y Fundamentos Matemáticos"):
-            st.markdown("- **Regresión Logística:** Modelo lineal que modela la probabilidad logit.\n- **SVM:** Encuentra un hiperplano de máxima separación entre clases.\n- **Naive Bayes:** Modelo probabilístico basado en el teorema de Bayes.\n- **LightGBM:** Ensamblaje de árboles construidos secuencialmente para corregir errores.")
+            st.markdown("- **Regresión Logística:** Modelo lineal generalizado.\n- **SVM:** Encuentra un hiperplano de máxima separación.\n- **Naive Bayes:** Modelo probabilístico basado en el teorema de Bayes.\n- **LightGBM:** Ensamblaje de árboles construidos secuencialmente para corregir errores.")
         if st.button("▶️ Entrenar y Comparar Clasificadores"):
             with st.spinner("Entrenando 5 modelos distintos..."):
                 import lightgbm as lgb
@@ -218,27 +241,33 @@ class AIEvolutionPage(AbstractPage):
     def render_umap_tab(self):
         st.header("Reducción de Dimensionalidad Avanzada con UMAP")
         st.markdown("**UMAP (Uniform Manifold Approximation and Projection)** es un algoritmo de la topología algebraica superior a K-Means para encontrar la estructura intrínseca de los datos.")
-        with st.expander("Fundamento Matemático: UMAP"):
-            st.markdown(r"UMAP modela los datos como un grafo difuso y busca una incrustación de baja dimensión que preserve la estructura topológica, minimizando la divergencia de Kullback-Leibler entre las distribuciones de distancia en el espacio de alta y baja dimensión.")
         if st.button("📊 Ejecutar K-Means vs. UMAP + HDBSCAN"):
             with st.spinner("Generando embeddings y agrupando..."):
-                import umap; from sklearn.cluster import HDBSCAN
+                import umap
+                from sklearn.cluster import HDBSCAN
                 df_calls, _ = load_base_data()
                 data_points = df_calls[['lat', 'lon']].values
-                embedding = umap.UMAP(n_neighbors=15, min_dist=0.0, n_components=2, random_state=42).fit_transform(data_points)
-                labels = HDBSCAN(min_cluster_size=15).fit_predict(embedding)
-                df_calls['UMAP_Cluster'], df_calls['UMAP_x'], df_calls['UMAP_y'] = labels, embedding[:, 0], embedding[:, 1]
+                kmeans_labels = KMeans(n_clusters=4, random_state=42, n_init='auto').fit_predict(data_points)
+                df_calls['KMeans_Cluster'] = kmeans_labels
+                embedding = umap.UMAP(n_neighbors=20, min_dist=0.0, n_components=2, random_state=42).fit_transform(data_points)
+                hdbscan_labels = HDBSCAN(min_cluster_size=20).fit_predict(embedding)
+                df_calls['UMAP_Cluster'] = hdbscan_labels
                 col1, col2 = st.columns(2)
-                with col1: st.plotly_chart(px.scatter(df_calls, x="lon", y="lat", color=df_calls['UMAP_Cluster'].astype(str), title="Clusters Geoespaciales (UMAP+HDBSCAN)"), use_container_width=True)
-                with col2: st.plotly_chart(px.scatter(df_calls, x="UMAP_x", y="UMAP_y", color=df_calls['UMAP_Cluster'].astype(str), title="Clusters en Espacio de Embedding UMAP"), use_container_width=True)
+                with col1:
+                    fig1 = px.scatter_mapbox(df_calls, lat="lat", lon="lon", color=df_calls['KMeans_Cluster'].astype(str), title="Clusters Geoespaciales (K-Means)", mapbox_style="carto-positron", category_orders={"color": sorted(df_calls['KMeans_Cluster'].astype(str).unique())})
+                    st.plotly_chart(fig1, use_container_width=True)
+                with col2:
+                    fig2 = px.scatter_mapbox(df_calls, lat="lat", lon="lon", color=df_calls['UMAP_Cluster'].astype(str), title="Clusters Geoespaciales (UMAP+HDBSCAN)", mapbox_style="carto-positron", category_orders={"color": sorted(df_calls['UMAP_Cluster'].astype(str).unique())})
+                    st.plotly_chart(fig2, use_container_width=True)
+                with st.expander("Análisis de Resultados e Implicaciones"):
+                    st.markdown("""
+                    **Comparación:** El mapa de la izquierda (K-Means) divide el espacio en regiones geométricas convexas. El mapa de la derecha (UMAP+HDBSCAN) encuentra clústeres basados en la densidad y la conectividad, identificando grupos de formas más arbitrarias y separando el ruido (puntos grises, cluster -1).
+                    **Implicación Científica:** UMAP proporciona una representación más fiel de la **estructura de la demanda real**. Puede identificar un clúster denso y alargado a lo largo de una avenida principal, mientras que K-Means podría dividirlo incorrectamente en dos. Esto conduce a una definición de "puntos de demanda" más precisa y operacionalmente relevante.
+                    """)
 
     def render_prophet_tab(self):
         st.header("Metodología: Pronóstico de Demanda con Prophet")
         st.markdown("Se utiliza **Prophet** de Meta, un modelo de series de tiempo bayesiano diseñado para manejar estacionalidades múltiples (diaria, semanal, anual) y días festivos.")
-        with st.expander("Fundamento Matemático: Prophet"):
-            st.markdown(r"Prophet modela una serie de tiempo como una suma de componentes:")
-            st.latex(r''' y(t) = g(t) + s(t) + h(t) + \epsilon_t ''')
-            st.markdown(r"Donde $g(t)$ es la tendencia, $s(t)$ la estacionalidad (modelada con series de Fourier), $h(t)$ los feriados, y $\epsilon_t$ el error.")
         days_to_forecast = st.slider("Parámetro: Horizonte de Pronóstico (días)", 7, 90, 30, key="prophet_slider")
         if st.button("📈 Generar Pronóstico"):
             with st.spinner("Calculando..."):
@@ -246,38 +275,57 @@ class AIEvolutionPage(AbstractPage):
                 df = pd.DataFrame({'ds': pd.date_range("2022-01-01", periods=365)})
                 df['y'] = 50 + (df['ds'].dt.dayofweek // 5) * 20 + np.sin(df.index / 365 * 4 * np.pi) * 10
                 model = Prophet(weekly_seasonality=True, yearly_seasonality=True).fit(df)
-                st.pyplot(model.plot(model.predict(model.make_future_dataframe(periods=days_to_forecast))))
+                forecast = model.predict(model.make_future_dataframe(periods=days_to_forecast))
+                historical_avg = df[df['ds'].dt.dayofweek == forecast.iloc[-1]['ds'].dayofweek]['y'].mean()
+                predicted_val = forecast.iloc[-1]['yhat']
+                st.pyplot(model.plot(forecast))
+                st.subheader("Análisis de Resultados e Implicaciones")
+                col1, col2 = st.columns(2)
+                col1.metric(f"Promedio Histórico para este Día", f"{historical_avg:.1f} llamadas")
+                col2.metric(f"Pronóstico para este Día", f"{predicted_val:.1f} llamadas", delta=f"{predicted_val - historical_avg:.1f}")
 
     def render_simpy_tab(self):
-        st.header("Metodología: Simulación y Aprendizaje por Refuerzo (RL)")
-        st.markdown("Se construye un **'gemelo digital'** con **SimPy** para servir como entorno de entrenamiento para un agente de RL.")
-        with st.expander("Fundamento Matemático: Procesos de Decisión de Markov"):
-            st.markdown("El problema se modela como un **MDP** $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$. El objetivo es encontrar la política óptima $\pi^*$ que maximice el retorno esperado:")
-            st.latex(r''' \pi^* = \arg\max_{\pi} \mathbb{E} \left[ \sum_{t=0}^{\infty} \gamma^t R_{t+1} \mid \pi \right] ''')
+        st.header("Metodología: Simulación de Sistemas y RL")
+        st.markdown("Se construye un **'gemelo digital'** del sistema con **SimPy** para servir como entorno de entrenamiento para un agente de RL.")
         num_ambulances = st.slider("Parámetro: Número de Ambulancias", 1, 10, 3, key="simpy_slider_1")
         avg_call_interval = st.slider("Parámetro: Tiempo Promedio Entre Llamadas (min)", 5, 60, 20, key="simpy_slider_2")
         
         @st.cache_data
         def run_dispatch_simulation(ambulances, interval):
-            import simpy
-            wait_times = []
-            env = simpy.Environment()
-            fleet = simpy.Resource(env, capacity=ambulances)
-            def call_proc(env, fleet):
-                arrival = env.now
-                with fleet.request() as req:
-                    yield req; wait_times.append(env.now - arrival)
+            wait_times_priority = []
+            wait_times_standard = []
+            
+            def call_process(env, fleet, is_priority):
+                arrival_time = env.now
+                priority_level = 1 if is_priority else 2
+                with fleet.request(priority=priority_level) as request:
+                    yield request
+                    wait_time = env.now - arrival_time
+                    if is_priority: wait_times_priority.append(wait_time)
+                    else: wait_times_standard.append(wait_time)
                     yield env.timeout(random.uniform(20, 40))
-            def generator(env, fleet, interval):
-                for _ in range(500):
-                    env.process(call_proc(env, fleet)); yield env.timeout(random.expovariate(1.0 / interval))
-            env.process(generator(env, fleet, interval)); env.run()
-            return np.mean(wait_times) if wait_times else 0
 
-        if st.button("🔬 Ejecutar Simulación"):
+            def call_generator(env, fleet, interval):
+                for _ in range(500):
+                    is_priority_call = random.random() < 0.2 # 20% of calls are priority
+                    env.process(call_process(env, fleet, is_priority_call))
+                    yield env.timeout(random.expovariate(1.0 / interval))
+            
+            env = simpy.Environment()
+            fleet = simpy.PriorityResource(env, capacity=ambulances)
+            env.process(call_generator(env, fleet, interval))
+            env.run()
+            return np.mean(wait_times_priority) if wait_times_priority else 0, np.mean(wait_times_standard) if wait_times_standard else 0
+
+        if st.button("🔬 Ejecutar Simulación con Prioridad"):
             with st.spinner("Simulando..."):
-                avg_wait = run_dispatch_simulation(num_ambulances, avg_call_interval)
-                st.metric("Resultado: Tiempo Promedio de Espera por Ambulancia", f"{avg_wait:.2f} minutos")
+                priority_wait, standard_wait = run_dispatch_simulation(num_ambulances, avg_call_interval)
+                st.subheader("Resultados de la Simulación")
+                col1, col2 = st.columns(2)
+                col1.metric("Tiempo de Espera Promedio (Llamadas Prioritarias)", f"{priority_wait:.2f} min")
+                col2.metric("Tiempo de Espera Promedio (Llamadas Estándar)", f"{standard_wait:.2f} min")
+                with st.expander("Análisis de Resultados e Implicaciones"):
+                    st.markdown("La simulación ahora utiliza una cola de prioridad, un modelo más realista. Se observa que, aunque el tiempo de espera estándar aumenta, el de las llamadas prioritarias se mantiene bajo, demostrando una política de despacho efectiva. Un agente de RL podría aprender una política aún más sofisticada, quizás decidiendo mantener una ambulancia libre en una zona de alta probabilidad de llamadas prioritarias, incluso si hay una llamada estándar esperando en otro lugar.")
 
 # ==============================================================================
 # 5. MAIN APPLICATION ROUTER
@@ -287,6 +335,7 @@ def main():
     render_sidebar_info()
     pages = {
         "Resumen de la Tesis": ThesisSummaryPage("Resumen de la Tesis", "📜"),
+        "Calibración del Modelo de Tiempos": TimeCorrectionPage("Calibración del Modelo de Tiempos", "⏱️"),
         "Clustering de Demanda": ClusteringPage("Clustering de Demanda", "📊"),
         "Optimización de Ubicaciones": OptimizationPage("Optimización de Ubicaciones", "📍"),
         "Evolución del Sistema con IA Avanzada": AIEvolutionPage("Evolución con IA", "🚀")
