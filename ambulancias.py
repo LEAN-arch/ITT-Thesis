@@ -465,58 +465,36 @@ class AIEvolutionPage(AbstractPage):
             """)
         
         if st.button("▶️ Ejecutar Benchmark de Clasificadores"):
-            with st.spinner("Entrenando modelos y preparando visualización... (la primera ejecución es lenta, las siguientes serán instantáneas)"):
+            with st.spinner("Entrenando modelos... (la primera ejecución es lenta, las siguientes serán instantáneas)"):
                 df_results = train_and_evaluate_models()
             
             if df_results is not None:
-                # Prepare thesis metrics
-                df_thesis_metrics = pd.DataFrame({
-                    'Modelo': ['Modelo de Tesis (Random Forest Corregido)', 'Método de API (Sin Corregir)'],
-                    'Metric_Value': [1.00, 0.839],
-                    'Metric_Type': ['Cobertura de Servicio', 'Cobertura de Servicio']
-                })
-                df_thesis_metrics['Error'] = 0.0 # These are point estimates from the study, no error bar
-
-                # Prepare classifier metrics
-                df_results.rename(columns={'Accuracy': 'Metric_Value'}, inplace=True)
-                df_results['Metric_Type'] = 'Precisión del Clasificador'
+                st.subheader("Resultados del Benchmark de Clasificadores")
+                # Add error bars for statistical context
                 n_test = 300 # Based on make_classification(1000) * test_size(0.3)
-                df_results['Error'] = np.sqrt(df_results['Metric_Value'] * (1 - df_results['Metric_Value']) / n_test)
-                
-                # Combine and sort
-                df_combined = pd.concat([df_results, df_thesis_metrics], ignore_index=True)
-                df_combined = df_combined.sort_values('Metric_Value', ascending=False).reset_index(drop=True)
+                df_results['Error'] = np.sqrt(df_results['Accuracy'] * (1 - df_results['Accuracy']) / n_test)
 
-                st.subheader("Resultados del Benchmark Integrado")
-                fig = px.bar(df_combined,
-                             x='Modelo',
-                             y='Metric_Value',
-                             error_y='Error',
-                             color='Metric_Type',
-                             title='Comparación de Rendimiento: Clasificadores vs. Impacto en Sistema',
-                             labels={'Metric_Value': 'Rendimiento (Precisión / Cobertura)', 'Modelo': 'Método / Modelo'},
-                             text_auto='.2%',
-                             color_discrete_map={
-                                 'Precisión del Clasificador': '#1F77B4',
-                                 'Cobertura de Servicio': '#FF7F0E'
-                             })
-                fig.update_layout(yaxis=dict(range=[0, 1.1]), yaxis_tickformat=".0%", uniformtext_minsize=8, uniformtext_mode='hide')
-                st.plotly_chart(fig, use_container_width=True)
-                
-                with st.expander("Análisis de los Resultados Combinados", expanded=True):
-                    st.markdown("""
-                    Esta visualización unificada ofrece una perspectiva completa, comparando el rendimiento en dos dominios distintos:
+                fig_benchmark = px.bar(df_results,
+                                     x='Modelo',
+                                     y='Accuracy',
+                                     error_y='Error',
+                                     title='Comparación de Precisión de Clasificadores de Vanguardia',
+                                     labels={'Accuracy': 'Precisión del Clasificador (Accuracy)', 'Modelo': 'Algoritmo de Machine Learning'},
+                                     text_auto='.3f')
+                fig_benchmark.update_layout(yaxis=dict(range=[0.7, 1.0]), yaxis_tickformat=".1%")
+                st.plotly_chart(fig_benchmark, use_container_width=True)
 
-                    1.  **Métrica de Sistema (Naranja - Cobertura de Servicio):** Representa el resultado final y más importante. El **"Modelo de Tesis"** logra un 100% de doble cobertura, demostrando una solución perfecta para el problema de planificación. El **"Método de API"** sin corrección, a pesar de ser tecnológicamente sofisticado, solo alcanza un 83.9%, lo que lo hace subóptimo para la planificación de emergencias.
+                with st.expander("Análisis de los Resultados (Benchmark de Clasificadores)", expanded=True):
+                    st.info("""
+                    **Interpretación del Gráfico:**
+                    - Este gráfico compara directamente el rendimiento de los algoritmos en una tarea de clasificación controlada. El eje Y representa la **precisión (accuracy)**, no la cobertura del sistema.
+                    - **Modelos de Vanguardia (LightGBM, XGBoost, Random Forest):** Los modelos de ensamblaje basados en árboles (especialmente los de boosting) logran la mayor precisión. Esto es consistente con el estado del arte para datos tabulares.
+                    - **Elección de la Tesis (Random Forest):** Se puede observar que Random Forest es **altamente competitivo**, quedando muy cerca de los modelos de boosting y superando significativamente a SVM, Naive Bayes y Regresión Logística. Esto valida científicamente la elección de Random Forest como un componente robusto y de alto rendimiento para la metodología.
+                    - **Barras de Error:** Las pequeñas barras de error (error estándar de la proporción) dan una idea de la incertidumbre estadística en la medición de la precisión.
 
-                    2.  **Métrica de Laboratorio (Azul - Precisión del Clasificador):** Compara el rendimiento de varios algoritmos en una tarea de clasificación estándar.
-                        - **Modelos de Vanguardia (LightGBM, XGBoost, Random Forest):** Como era de esperar, los modelos de ensamblaje basados en árboles (especialmente los de boosting) logran la mayor precisión. Esto valida la elección del Random Forest en la tesis como una opción robusta y de alto rendimiento.
-                        - **Barras de Error:** Las pequeñas barras de error en los modelos de clasificación (calculadas como el error estándar de una proporción) dan una idea de la incertidumbre estadística en la medición de la precisión. La ausencia de barras de error en las métricas de cobertura indica que son valores puntuales reportados por un estudio específico.
-                    
                     **Conclusión Científica Clave:**
-                    La lección más importante es que **la precisión en el laboratorio no es el objetivo final**. Aunque LightGBM podría ser marginalmente más preciso que Random Forest, el verdadero avance de la tesis no fue elegir el clasificador con la mayor precisión, sino **formular el problema correctamente** (clasificación + corrección) para transformar un parámetro sesgado (tiempos de API) en uno insesgado. Es esta corrección metodológica, no la elección de un algoritmo específico, lo que permite al modelo de optimización alcanzar el 100% de cobertura.
+                    La lección más importante es que **el objetivo no es simplemente elegir el modelo con la puntuación más alta en un benchmark**. El verdadero avance de la tesis fue **formular el problema correctamente** (clasificación + corrección). Este benchmark demuestra que la herramienta elegida para esa formulación (Random Forest) era una excelente y justificada elección, ya que su rendimiento es comparable al de los mejores algoritmos disponibles.
                     """)
-
             else:
                 st.error("Por favor instale las librerías avanzadas: pip install lightgbm xgboost")
 
