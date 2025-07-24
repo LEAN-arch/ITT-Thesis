@@ -231,7 +231,6 @@ class OptimizationPage(AbstractPage):
                 np.random.seed(0)
                 optimized_indices = np.random.choice(centroids.index, size=min(num_ambulances, len(centroids)), replace=False)
                 
-                # FIX: Add .copy() here to prevent the SettingWithCopyWarning.
                 optimized_bases = centroids.iloc[optimized_indices].copy()
                 
                 optimized_bases['nombre'] = [f'Estación Optimizada {i+1}' for i in range(len(optimized_bases))]
@@ -257,6 +256,45 @@ class OptimizationPage(AbstractPage):
             st.markdown("""
             El resultado más significativo de la tesis es el **salto del 80% al 100% en la doble cobertura**. Esto valida cuantitativamente la hipótesis central de la investigación: **la calidad de los parámetros de entrada de un modelo de optimización es tan importante como la sofisticación del propio modelo.**
             """)
+
+# ==============================================================================
+# AI EVOLUTION PAGE (WITH CACHING FIX)
+# ==============================================================================
+
+@st.cache_data
+def train_and_evaluate_models():
+    """
+    Trains and evaluates multiple classifiers.
+    This function is cached to avoid re-computation on every run.
+    """
+    try:
+        import lightgbm as lgb
+        import xgboost as xgb
+    except ImportError:
+        st.error("Por favor instale las librerías avanzadas: pip install lightgbm xgboost")
+        return None
+
+    # Reduce samples for faster demo performance
+    X, y = make_classification(n_samples=1000, n_features=15, n_informative=8, n_classes=3, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+    models = {
+        "Logistic Regression": LogisticRegression(), 
+        "Gaussian Naive Bayes": GaussianNB(), 
+        "SVM": SVC(), 
+        "Random Forest": RandomForestClassifier(random_state=42), 
+        "LightGBM": lgb.LGBMClassifier(random_state=42, verbosity=-1),
+        "XGBoost": xgb.XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='mlogloss')
+    }
+
+    results = {}
+    for name, model in models.items():
+        model.fit(X_train, y_train)
+        results[name] = accuracy_score(y_test, model.predict(X_test))
+
+    df_results = pd.DataFrame.from_dict(results, orient='index', columns=['Accuracy']).sort_values('Accuracy', ascending=False).reset_index()
+    df_results.rename(columns={'index': 'Modelo'}, inplace=True)
+    return df_results
 
 class AIEvolutionPage(AbstractPage):
     def render(self) -> None:
@@ -338,31 +376,13 @@ class AIEvolutionPage(AbstractPage):
             
             **Justificación Científica:** LightGBM y XGBoost son consistentemente los modelos de mejor rendimiento para datos tabulares. Se incluyen para establecer un **límite superior de rendimiento práctico**. Su capacidad para manejar un gran número de características, su eficiencia (utilizan histogramas para encontrar los mejores splits) y su inclusión de regularización los convierten en candidatos extremadamente fuertes. Incluirlos a ambos permite contrastar las dos implementaciones más dominantes del gradient boosting.
             """)
+        
         if st.button("▶️ Entrenar y Comparar Clasificadores"):
-            with st.spinner("Entrenando 6 modelos distintos... (puede requerir instalar lightgbm y xgboost)"):
-                try:
-                    import lightgbm as lgb
-                    import xgboost as xgb
-                except ImportError:
-                    st.error("Por favor instale las librerías avanzadas: pip install lightgbm xgboost")
-                    return
-                    
-                X, y = make_classification(n_samples=2000, n_features=15, n_informative=8, n_classes=3, random_state=42)
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-                
-                models = {
-                    "Logistic Regression": LogisticRegression(), 
-                    "Gaussian Naive Bayes": GaussianNB(), 
-                    "SVM": SVC(), 
-                    "Random Forest": RandomForestClassifier(random_state=42), 
-                    "LightGBM": lgb.LGBMClassifier(random_state=42, verbosity=-1),
-                    "XGBoost": xgb.XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='mlogloss')
-                }
-
-                results = {name: accuracy_score(y_test, model.fit(X_train, y_train).predict(X_test)) for name, model in models.items()}
-                df_results = pd.DataFrame.from_dict(results, orient='index', columns=['Accuracy']).sort_values('Accuracy', ascending=False).reset_index()
-                df_results.rename(columns={'index': 'Modelo'}, inplace=True)
-                
+            with st.spinner("Entrenando modelos... (la primera ejecución puede ser lenta)"):
+                df_results = train_and_evaluate_models()
+            
+            if df_results is not None:
+                st.subheader("Resultados de la Comparación")
                 fig = px.bar(df_results, x='Modelo', y='Accuracy', title='Comparación de Precisión de Clasificadores', text_auto='.3%')
                 st.plotly_chart(fig, use_container_width=True)
 
