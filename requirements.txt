@@ -1,5 +1,33 @@
-streamlit>=1.12.0
-pandas>=1.3.0
-numpy>=1.21.0
-plotly>=5.5.0
-scikit-learn>=1.0.0
+# --- Core Dashboard & Data Manipulation ---
+numpy
+pandas
+plotly
+scikit-learn
+streamlit
+
+# --- Advanced AI/ML Libraries for Interactive Demonstrations ---
+
+# For Gradient Boosting Models (Tab 1)
+# High-performance, gradient boosting frameworks.
+lightgbm
+xgboost
+
+# For Spatio-Temporal Forecasting (Tab 2)
+# A library for time series forecasting developed by Meta.
+# Note: Prophet may have additional system-level dependencies on some OS.
+prophet
+
+# For System Simulation (Tab 3)
+# A process-based discrete-event simulation framework.
+simpy
+
+# The following libraries are mentioned in the code's vision but are not
+# required for the current interactive demos. They are included here for
+# completeness of the future development environment.
+
+# For Reinforcement Learning
+stable-baselines3
+
+# For Graph Neural Networks
+# Note: This will also install PyTorch as a dependency.
+torch-geometric
