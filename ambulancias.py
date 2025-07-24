@@ -37,7 +37,7 @@ def render_sidebar_info():
     *Autora:* **M.C. Noelia Araceli Torres Cortés**
     *Institución:* **Tecnológico Nacional de México / ITT**
     """)
-    st.sidebar.info("Aplicación de grado SME que demuestra los conceptos de la tesis y su evolución con IA de vanguardia.")
+    st.sidebar.info("Aplicación SME que demuestra los conceptos de la tesis y su evolución con IA de vanguardia.")
 
 # ==============================================================================
 # 2. APPLICATION STATE INITIALIZATION
@@ -56,11 +56,8 @@ def load_base_data():
     lat_min, lat_max = 32.40, 32.55; lon_min, lon_max = -117.12, -116.60
     num_llamadas = 500; np.random.seed(42)
     api_time = np.random.gamma(shape=4, scale=5, size=num_llamadas) + 5
-    real_time_factor = np.random.normal(0.8, 0.1, size=num_llamadas)
-    real_time = api_time * real_time_factor
-    correction_factor = np.random.normal(0, 2, size=num_llamadas)
-    corrected_time = real_time + correction_factor
-    
+    real_time = api_time * np.random.normal(0.8, 0.1, size=num_llamadas)
+    corrected_time = real_time + np.random.normal(0, 2, size=num_llamadas)
     df_llamadas = pd.DataFrame({
         'lat': np.random.uniform(lat_min, lat_max, num_llamadas),
         'lon': np.random.uniform(lon_min, lon_max, num_llamadas),
@@ -114,19 +111,16 @@ class TimeCorrectionPage(AbstractPage):
     def render(self) -> None:
         super().render()
         st.markdown("La contribución central de la tesis es la calibración de los tiempos de viaje. Un modelo de ML aprende la discrepancia sistemática entre las estimaciones de la API y la realidad operacional.")
-        
         with st.expander("Metodología y Fundamento Matemático", expanded=True):
              st.markdown(r"""
             El problema de predecir el error de tiempo de viaje $\epsilon = T_{\text{API}} - T_{\text{real}}$ se transforma de una regresión a una **clasificación**. Este es un paso crucial para la robustez.
-            1.  **Discretización:** El espacio de error continuo se discretiza en clases categóricas (e.g., 'Sobreestimación grande', 'Preciso', 'Subestimación').
-            2.  **Clasificación:** Un modelo **Random Forest** aprende a predecir la clase de error basándose en las características del viaje.
+            1.  **Discretización:** El espacio de error continuo se discretiza en clases categóricas.
+            2.  **Clasificación:** Un modelo **Random Forest** aprende a predecir la clase de error $f(X) = \hat{c}$.
             3.  **Corrección:** Se aplica una corrección basada en la mediana del error de la clase predicha: $T_{\text{corregido}} = T_{\text{API}} - \Delta_{\hat{c}}$.
             """)
-        
         df_llamadas, _ = load_base_data()
         error_antes = df_llamadas['tiempo_api_minutos'] - df_llamadas['tiempo_real_minutos']
         error_despues = df_llamadas['tiempo_corregido_minutos'] - df_llamadas['tiempo_real_minutos']
-        
         st.header("Resultados de la Calibración del Modelo")
         col1, col2 = st.columns(2)
         with col1:
@@ -139,15 +133,13 @@ class TimeCorrectionPage(AbstractPage):
             fig2 = px.histogram(error_despues, nbins=50, title="Error del Modelo Corregido (Corregido - Real)")
             fig2.update_layout(xaxis_title="Error de Tiempo (minutos)", yaxis_title="Frecuencia")
             st.plotly_chart(fig2, use_container_width=True)
-            
         with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
             st.markdown("""
-            - **Gráfico de la Izquierda (Antes):** La distribución del error de la API está **sesgada a la derecha**, con una media significativamente mayor que cero. Estadísticamente, esto demuestra que la API es un **estimador sesgado** que sobreestima consistentemente el tiempo de viaje. Un modelo de optimización basado en estos datos producirá soluciones subóptimas.
-            - **Gráfico de la Derecha (Después):** El modelo de corrección transforma la distribución. Ahora es **aproximadamente simétrica y centrada en cero**. Esto indica que el modelo corregido es un **estimador insesgado** del tiempo de viaje real. Además, la **varianza de la distribución se reduce**, lo que significa que las predicciones no solo son correctas en promedio, sino también más consistentes.
-            
-            **Implicación:** La calibración del modelo convierte un parámetro de entrada inutilizable en uno científicamente válido, lo que permite que el modelo de optimización posterior funcione sobre una representación precisa de la realidad.
+            - **Gráfico de la Izquierda (Antes):** La distribución del error de la API está **sesgada a la derecha**, con una media significativamente mayor que cero. Estadísticamente, esto demuestra que la API es un **estimador sesgado**.
+            - **Gráfico de la Derecha (Después):** El modelo de corrección transforma la distribución. Ahora es **aproximadamente simétrica y centrada en cero**, convirtiéndolo en un **estimador insesgado**.
+            **Implicación:** La calibración del modelo convierte un parámetro de entrada inutilizable en uno científicamente válido.
             """)
-            
+
 class ClusteringPage(AbstractPage):
     def render(self) -> None:
         super().render()
@@ -158,7 +150,6 @@ class ClusteringPage(AbstractPage):
             **Objetivo:** Minimizar la inercia, o la Suma de Cuadrados Intra-clúster (WCSS):
             """)
             st.latex(r''' \arg\min_{S} \sum_{i=1}^{k} \sum_{x \in S_i} \|x - \mu_i\|^2 ''')
-            st.markdown(r"Donde $\mu_i$ es el centroide (media vectorial) del clúster $S_i$.")
         k_input = st.slider("Parámetro (k): Número de Puntos de Demanda", 2, 25, st.session_state.k_clusters, key="k_slider")
         if k_input != st.session_state.k_clusters:
             st.session_state.k_clusters = k_input
@@ -261,13 +252,17 @@ class AIEvolutionPage(AbstractPage):
                     st.plotly_chart(fig2, use_container_width=True)
                 with st.expander("Análisis de Resultados e Implicaciones"):
                     st.markdown("""
-                    **Comparación:** El mapa de la izquierda (K-Means) divide el espacio en regiones geométricas convexas. El mapa de la derecha (UMAP+HDBSCAN) encuentra clústeres basados en la densidad y la conectividad, identificando grupos de formas más arbitrarias y separando el ruido (puntos grises, cluster -1).
-                    **Implicación Científica:** UMAP proporciona una representación más fiel de la **estructura de la demanda real**. Puede identificar un clúster denso y alargado a lo largo de una avenida principal, mientras que K-Means podría dividirlo incorrectamente en dos. Esto conduce a una definición de "puntos de demanda" más precisa y operacionalmente relevante.
+                    **Comparación:** El mapa de K-Means divide el espacio en regiones geométricas convexas. El mapa de UMAP+HDBSCAN encuentra clústeres basados en la densidad y la conectividad, identificando grupos de formas más arbitrarias y separando el ruido (puntos grises, cluster -1).
+                    **Implicación Científica:** UMAP proporciona una representación más fiel de la **estructura de la demanda real**, lo que conduce a una definición de "puntos de demanda" más precisa.
                     """)
 
     def render_prophet_tab(self):
         st.header("Metodología: Pronóstico de Demanda con Prophet")
-        st.markdown("Se utiliza **Prophet** de Meta, un modelo de series de tiempo bayesiano diseñado para manejar estacionalidades múltiples (diaria, semanal, anual) y días festivos.")
+        st.markdown("Se utiliza **Prophet** de Meta, un modelo de series de tiempo bayesiano diseñado para manejar estacionalidades múltiples.")
+        with st.expander("Fundamento Matemático: Prophet"):
+            st.markdown(r"Prophet modela una serie de tiempo como una suma de componentes:")
+            st.latex(r''' y(t) = g(t) + s(t) + h(t) + \epsilon_t ''')
+            st.markdown(r"Donde $g(t)$ es la tendencia, $s(t)$ la estacionalidad (series de Fourier), $h(t)$ los feriados, y $\epsilon_t$ el error.")
         days_to_forecast = st.slider("Parámetro: Horizonte de Pronóstico (días)", 7, 90, 30, key="prophet_slider")
         if st.button("📈 Generar Pronóstico"):
             with st.spinner("Calculando..."):
@@ -285,20 +280,22 @@ class AIEvolutionPage(AbstractPage):
                 col2.metric(f"Pronóstico para este Día", f"{predicted_val:.1f} llamadas", delta=f"{predicted_val - historical_avg:.1f}")
 
     def render_simpy_tab(self):
-        st.header("Metodología: Simulación de Sistemas y RL")
-        st.markdown("Se construye un **'gemelo digital'** del sistema con **SimPy** para servir como entorno de entrenamiento para un agente de RL.")
+        st.header("Metodología: Simulación y Aprendizaje por Refuerzo (RL)")
+        st.markdown("Se construye un **'gemelo digital'** con **SimPy** para servir como entorno de entrenamiento para un agente de RL.")
+        with st.expander("Fundamento Matemático: Procesos de Decisión de Markov"):
+            st.markdown("El problema se modela como un **MDP** $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$. El objetivo es encontrar la política óptima $\pi^*$ que maximice el retorno esperado:")
+            st.latex(r''' \pi^* = \arg\max_{\pi} \mathbb{E} \left[ \sum_{t=0}^{\infty} \gamma^t R_{t+1} \mid \pi \right] ''')
         num_ambulances = st.slider("Parámetro: Número de Ambulancias", 1, 10, 3, key="simpy_slider_1")
         avg_call_interval = st.slider("Parámetro: Tiempo Promedio Entre Llamadas (min)", 5, 60, 20, key="simpy_slider_2")
         
         @st.cache_data
         def run_dispatch_simulation(ambulances, interval):
-            wait_times_priority = []
-            wait_times_standard = []
+            import simpy
+            wait_times_priority = []; wait_times_standard = []
             
             def call_process(env, fleet, is_priority):
                 arrival_time = env.now
-                priority_level = 1 if is_priority else 2
-                with fleet.request(priority=priority_level) as request:
+                with fleet.request(priority=(1 if is_priority else 2)) as request:
                     yield request
                     wait_time = env.now - arrival_time
                     if is_priority: wait_times_priority.append(wait_time)
@@ -307,7 +304,7 @@ class AIEvolutionPage(AbstractPage):
 
             def call_generator(env, fleet, interval):
                 for _ in range(500):
-                    is_priority_call = random.random() < 0.2 # 20% of calls are priority
+                    is_priority_call = random.random() < 0.2
                     env.process(call_process(env, fleet, is_priority_call))
                     yield env.timeout(random.expovariate(1.0 / interval))
             
@@ -322,10 +319,8 @@ class AIEvolutionPage(AbstractPage):
                 priority_wait, standard_wait = run_dispatch_simulation(num_ambulances, avg_call_interval)
                 st.subheader("Resultados de la Simulación")
                 col1, col2 = st.columns(2)
-                col1.metric("Tiempo de Espera Promedio (Llamadas Prioritarias)", f"{priority_wait:.2f} min")
-                col2.metric("Tiempo de Espera Promedio (Llamadas Estándar)", f"{standard_wait:.2f} min")
-                with st.expander("Análisis de Resultados e Implicaciones"):
-                    st.markdown("La simulación ahora utiliza una cola de prioridad, un modelo más realista. Se observa que, aunque el tiempo de espera estándar aumenta, el de las llamadas prioritarias se mantiene bajo, demostrando una política de despacho efectiva. Un agente de RL podría aprender una política aún más sofisticada, quizás decidiendo mantener una ambulancia libre en una zona de alta probabilidad de llamadas prioritarias, incluso si hay una llamada estándar esperando en otro lugar.")
+                col1.metric("Espera Promedio (Prioritarias)", f"{priority_wait:.2f} min")
+                col2.metric("Espera Promedio (Estándar)", f"{standard_wait:.2f} min")
 
 # ==============================================================================
 # 5. MAIN APPLICATION ROUTER
@@ -335,7 +330,7 @@ def main():
     render_sidebar_info()
     pages = {
         "Resumen de la Tesis": ThesisSummaryPage("Resumen de la Tesis", "📜"),
-        "Calibración del Modelo de Tiempos": TimeCorrectionPage("Calibración del Modelo de Tiempos", "⏱️"),
+        "Calibración del Modelo de Tiempos": TimeCorrectionPage("Calibración del Modelo", "⏱️"),
         "Clustering de Demanda": ClusteringPage("Clustering de Demanda", "📊"),
         "Optimización de Ubicaciones": OptimizationPage("Optimización de Ubicaciones", "📍"),
         "Evolución del Sistema con IA Avanzada": AIEvolutionPage("Evolución con IA", "🚀")
