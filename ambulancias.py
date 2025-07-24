@@ -8,8 +8,14 @@ import numpy as np
 import plotly.express as px
 import random
 from sklearn.cluster import KMeans
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 from abc import ABC, abstractmethod
-import os
 
 # ==============================================================================
 # PAGE CONFIGURATION (RUNS ONLY ONCE)
@@ -284,94 +290,78 @@ class OptimizationPage(AbstractPage):
 # ==============================================================================
 
 @st.cache_data
-def load_benchmark_results():
-    """
-    Loads pre-computed benchmark results to ensure instant app performance.
-    This simulates the output of a lengthy model training process.
-    """
-    data = {
-        'Modelo': [
-            'LightGBM',
-            'XGBoost',
-            'Modelo de Tesis (Random Forest Corregido)',
-            'SVM',
-            'Logistic Regression',
-            'Gaussian Naive Bayes',
-            'Método de API (Simulado)'
-        ],
-        'Accuracy': [
-            0.893,  # LightGBM
-            0.887,  # XGBoost
-            0.880,  # Random Forest (Thesis Model)
-            0.877,  # SVM
-            0.853,  # Logistic Regression
-            0.843,  # Gaussian Naive Bayes
-            0.680   # Simulated API baseline
-        ]
+def train_and_evaluate_models():
+    """Trains and evaluates multiple classifiers. Cached for performance."""
+    try:
+        import lightgbm as lgb
+        import xgboost as xgb
+    except ImportError:
+        return None
+
+    X, y = make_classification(n_samples=1000, n_features=15, n_informative=8, n_classes=3, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    
+    models = {
+        "Logistic Regression": LogisticRegression(), "Gaussian Naive Bayes": GaussianNB(), "SVM": SVC(), 
+        "LightGBM": lgb.LGBMClassifier(random_state=42, verbosity=-1),
+        "XGBoost": xgb.XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='mlogloss')
     }
-    df_results = pd.DataFrame(data)
+    
+    results = {name: accuracy_score(y_test, model.fit(X_train, y_train).predict(X_test)) for name, model in models.items()}
+    
+    rf_model = RandomForestClassifier(random_state=42)
+    rf_model.fit(X_train, y_train)
+    results["Modelo de Tesis (Random Forest Corregido)"] = accuracy_score(y_test, rf_model.predict(X_test))
+
+    results["Método de API (Simulado)"] = 0.68
+
+    df_results = pd.DataFrame.from_dict(results, orient='index', columns=['Accuracy']).sort_values('Accuracy', ascending=False).reset_index()
+    df_results.rename(columns={'index': 'Modelo'}, inplace=True)
     return df_results
 
 @st.cache_data
-def load_advanced_clustering_results(_df):
-    """Generates plausible clustering results instantly."""
+def run_advanced_clustering(_df):
+    """Performs K-Means, UMAP, and HDBSCAN clustering. Cached for performance."""
+    try:
+        import umap
+        import hdbscan
+    except ImportError:
+        return None
+    
     df_clustered = _df.copy()
-    np.random.seed(42)
-    df_clustered['KMeans_Cluster'] = np.random.randint(0, 4, size=len(df_clustered))
-    df_clustered['UMAP_Cluster'] = np.random.randint(-1, 3, size=len(df_clustered))
+    data_points = df_clustered[['lat', 'lon']].values
+    
+    kmeans_labels = KMeans(n_clusters=4, random_state=42, n_init='auto').fit_predict(data_points)
+    df_clustered['KMeans_Cluster'] = kmeans_labels
+    
+    reducer = umap.UMAP(n_neighbors=20, min_dist=0.0, n_components=2, random_state=42)
+    embedding = reducer.fit_transform(data_points)
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=20)
+    hdbscan_labels = clusterer.fit_predict(embedding)
+    df_clustered['UMAP_Cluster'] = hdbscan_labels
     return df_clustered
 
-class MockProphetModel:
-    """A mock object to mimic Prophet's model.plot() method for fast plotting."""
-    def __init__(self, historical_df, forecast_df):
-        self.historical_df = historical_df
-        self.forecast_df = forecast_df
-
-    def plot(self, forecast_df):
-        fig = px.line(self.forecast_df, x='ds', y='yhat', title='Pronóstico de Demanda (Generado Instantáneamente)')
-        fig.add_scatter(x=self.forecast_df['ds'], y=self.forecast_df['yhat_upper'], fill='tonexty', mode='lines', line_color='rgba(0,114,178,0.2)', name='Intervalo Incertidumbre')
-        fig.add_scatter(x=self.forecast_df['ds'], y=self.forecast_df['yhat_lower'], fill='tonexty', mode='lines', line_color='rgba(0,114,178,0.2)', name='Intervalo Incertidumbre', showlegend=False)
-        fig.add_scatter(x=self.historical_df['ds'], y=self.historical_df['y'], mode='markers', marker_color='black', name='Datos Históricos')
-        fig.update_layout(yaxis_title='Llamadas Diarias', xaxis_title='Fecha')
-        return fig
-
 @st.cache_data
-def load_prophet_forecast(days_to_forecast):
-    """Generates a realistic-looking but instant forecast."""
-    # Historical data
-    df_hist = pd.DataFrame({'ds': pd.date_range("2022-01-01", periods=365)})
-    np.random.seed(42)
-    # Generate a plausible time series with trend, weekly/yearly seasonality, and noise
-    trend = np.linspace(50, 65, 365)
-    yearly_seasonality = 10 * np.sin(np.arange(365) / 365 * 2 * np.pi * 2)
-    weekly_seasonality = 8 * np.sin(df_hist['ds'].dt.dayofweek / 7 * 2 * np.pi)
-    noise = np.random.normal(0, 3, 365)
-    df_hist['y'] = trend + yearly_seasonality + weekly_seasonality + noise
+def generate_prophet_forecast(days_to_forecast):
+    """Fits Prophet model and generates forecast. Cached for performance."""
+    try:
+        from prophet import Prophet
+    except ImportError:
+        return None, None, None, None
 
-    # Forecast data
-    future_dates = pd.date_range(start="2023-01-01", periods=days_to_forecast)
-    all_dates = pd.to_datetime(pd.concat([df_hist['ds'], pd.Series(future_dates)], ignore_index=True))
+    df = pd.DataFrame({'ds': pd.date_range("2022-01-01", periods=365)})
+    df['y'] = 50 + (df['ds'].dt.dayofweek // 5) * 20 + np.sin(df.index / 365 * 4 * np.pi) * 10 + np.random.randn(365) * 4
     
-    forecast_trend = np.linspace(65, 68, days_to_forecast)
-    future_yearly = 10 * np.sin((365 + np.arange(days_to_forecast)) / 365 * 2 * np.pi * 2)
-    future_weekly = 8 * np.sin(future_dates.dayofweek / 7 * 2 * np.pi)
+    model = Prophet(weekly_seasonality=True, yearly_seasonality=True)
+    model.fit(df)
+    future_df = model.make_future_dataframe(periods=days_to_forecast)
+    forecast = model.predict(future_df)
     
-    yhat_hist = trend + yearly_seasonality + weekly_seasonality
-    yhat_future = forecast_trend + future_yearly + future_weekly
-    yhat = np.concatenate([yhat_hist, yhat_future])
+    last_forecast_day = forecast.iloc[-1]['ds']
+    historical_avg = df[df['ds'].dt.dayofweek == last_forecast_day.dayofweek]['y'].mean()
+    predicted_val = forecast.iloc[-1]['yhat']
     
-    forecast = pd.DataFrame({'ds': all_dates, 'yhat': yhat})
-    forecast['yhat_lower'] = forecast['yhat'] - 10  # Plausible uncertainty interval
-    forecast['yhat_upper'] = forecast['yhat'] + 10
-
-    # Metrics
-    last_forecast_day = forecast.iloc[-1]
-    historical_avg = df_hist[df_hist['ds'].dt.dayofweek == last_forecast_day['ds'].dayofweek]['y'].mean()
-    predicted_val = last_forecast_day['yhat']
-    
-    mock_model = MockProphetModel(df_hist, forecast)
-
-    return mock_model, forecast, historical_avg, predicted_val
+    return model, forecast, historical_avg, predicted_val
 
 class AIEvolutionPage(AbstractPage):
     def render(self) -> None:
@@ -394,7 +384,8 @@ class AIEvolutionPage(AbstractPage):
         """)
 
         if st.button("▶️ Ejecutar Benchmark de Clasificadores"):
-            df_results = load_benchmark_results()
+            with st.spinner("Entrenando modelos... (la primera ejecución es lenta, las siguientes serán instantáneas)"):
+                df_results = train_and_evaluate_models()
             
             if df_results is not None:
                 df_results['Error Rate'] = 1 - df_results['Accuracy']
@@ -435,8 +426,7 @@ class AIEvolutionPage(AbstractPage):
                     **Conclusión:** El benchmark valida la elección del Random Forest como una solución potente y bien justificada que no solo supera drásticamente la línea base, sino que también se mantiene firme frente a otras alternativas complejas.
                     """, unsafe_allow_html=True)
             else:
-                st.error("No se pudieron cargar los resultados del benchmark.")
-
+                st.error("Por favor instale las librerías avanzadas: pip install lightgbm xgboost")
     def render_umap_tab(self):
         st.header("Metodología Propuesta: Reducción de Dimensionalidad Topológica con UMAP")
         st.markdown("""
@@ -477,8 +467,9 @@ class AIEvolutionPage(AbstractPage):
             """)
 
         if st.button("📊 Ejecutar Comparación de Métodos de Clustering"):
-            df_calls, _ = load_base_data()
-            df_clustered = load_advanced_clustering_results(df_calls)
+            with st.spinner("Generando clusters... (la primera ejecución es lenta, las siguientes serán instantáneas)"):
+                df_calls, _ = load_base_data()
+                df_clustered = run_advanced_clustering(df_calls)
             
             if df_clustered is not None:
                 st.subheader("Resultados de la Comparación de Clustering")
@@ -505,7 +496,7 @@ class AIEvolutionPage(AbstractPage):
                     La capacidad de UMAP para respetar la topología de los datos y la habilidad de HDBSCAN para manejar la densidad y el ruido proporcionan una segmentación de la demanda mucho más realista y matizada. Para la planificación de SME, esto es invaluable. Permite distinguir entre **zonas de demanda predecibles y consistentes** (los clústeres de colores), que requieren la asignación de recursos permanentes, y la **demanda estocástica y dispersa** (el ruido), que podría ser manejada por unidades de reserva o políticas de despacho diferentes. Esto conduce a una definición de "puntos de demanda" que no solo es más precisa, sino también más rica en información operacional.
                     """)
             else:
-                 st.error("No se pudieron cargar los resultados del clustering.")
+                 st.error("Por favor instale las librerías requeridas: pip install umap-learn hdbscan")
 
     def render_prophet_tab(self):
         st.header("Metodología Propuesta: Pronóstico de Demanda con Modelos de Series de Tiempo")
@@ -548,20 +539,28 @@ class AIEvolutionPage(AbstractPage):
         
         days_to_forecast = st.slider("Parámetro: Horizonte de Pronóstico (días)", 7, 90, 30, key="prophet_slider")
         if st.button("📈 Generar Pronóstico de Demanda"):
-            model, forecast, historical_avg, predicted_val = load_prophet_forecast(days_to_forecast)
+            with st.spinner("Generando pronóstico... (las ejecuciones son cacheadas por cada valor del slider)"):
+                model, forecast, historical_avg, predicted_val = generate_prophet_forecast(days_to_forecast)
             
             if model is not None:
                 fig = model.plot(forecast)
-                st.plotly_chart(fig, use_container_width=True)
+                st.pyplot(fig)
                 
                 st.subheader("Análisis de Resultados e Implicaciones Científicas")
+                st.markdown("""
+                La gráfica muestra los datos históricos (puntos negros), el pronóstico del modelo (línea azul) y el intervalo de incertidumbre del 80% (área sombreada). El modelo ha capturado con éxito la tendencia y los patrones estacionales (e.g., picos en los fines de semana).
+                """)
                 col1, col2 = st.columns(2)
                 last_forecast_day_str = forecast.iloc[-1]['ds'].strftime('%A')
                 col1.metric(f"Promedio Histórico para un {last_forecast_day_str}", f"{historical_avg:.1f} llamadas")
                 col2.metric(f"Pronóstico para el Próximo {last_forecast_day_str}", f"{predicted_val:.1f} llamadas", delta=f"{predicted_val - historical_avg:.1f}")
                 
+                st.markdown("""
+                **Implicación Científica y Operacional:**
+                Este enfoque permite una transición fundamental de una **optimización reactiva** (basada en promedios históricos) a una **optimización proactiva y anticipatoria**. En lugar de planificar para el "martes promedio", el sistema puede planificar para el "próximo martes", incorporando tendencias recientes y estacionalidades. Operacionalmente, esto significa que las ambulancias pueden ser reubicadas a zonas de alta demanda *pronosticada* horas antes de que ocurran los picos de llamadas, reduciendo así de manera fundamental los tiempos de respuesta.
+                """)
             else:
-                st.error("No se pudieron cargar los datos del pronóstico.")
+                st.error("Por favor instale Prophet: pip install prophet")
 
     def render_simpy_tab(self):
         st.header("Metodología Propuesta: Simulación de Sistemas y Aprendizaje por Refuerzo (RL)")
