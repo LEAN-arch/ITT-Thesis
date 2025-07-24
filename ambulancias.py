@@ -81,10 +81,11 @@ def load_base_data():
 def run_kmeans(df, k):
     """Performs K-Means clustering and returns centroids and labeled data."""
     kmeans = KMeans(n_clusters=k, random_state=42, n_init='auto')
-    df['cluster'] = kmeans.fit_predict(df[['lat', 'lon']])
+    df_copy = df.copy()
+    df_copy['cluster'] = kmeans.fit_predict(df_copy[['lat', 'lon']])
     centroids = kmeans.cluster_centers_
     df_centroids = pd.DataFrame(centroids, columns=['lat', 'lon'])
-    return df, df_centroids
+    return df_copy, df_centroids
 
 # ==============================================================================
 # 4. PAGE ABSTRACTION (OBJECT-ORIENTED DESIGN)
@@ -181,7 +182,7 @@ class ClusteringPage(AbstractPage):
         if st.button("Ejecutar Algoritmo K-Means"):
             with st.spinner("Calculando centroides..."):
                 df_llamadas, _ = load_base_data()
-                labeled_df, centroids_df = run_kmeans(df_llamadas.copy(), st.session_state.k_clusters)
+                labeled_df, centroids_df = run_kmeans(df_llamadas, st.session_state.k_clusters)
                 st.session_state.labeled_df, st.session_state.centroids_df = labeled_df, centroids_df
                 st.session_state.clusters_run = True
         if st.session_state.clusters_run: self.display_cluster_map()
@@ -258,43 +259,74 @@ class OptimizationPage(AbstractPage):
             """)
 
 # ==============================================================================
-# AI EVOLUTION PAGE (WITH CACHING FIX)
+# AI EVOLUTION PAGE (WITH OPTIMIZATIONS)
 # ==============================================================================
 
 @st.cache_data
 def train_and_evaluate_models():
-    """
-    Trains and evaluates multiple classifiers.
-    This function is cached to avoid re-computation on every run.
-    """
+    """Trains and evaluates multiple classifiers. Cached for performance."""
     try:
         import lightgbm as lgb
         import xgboost as xgb
     except ImportError:
-        st.error("Por favor instale las librerías avanzadas: pip install lightgbm xgboost")
         return None
 
-    # Reduce samples for faster demo performance
     X, y = make_classification(n_samples=1000, n_features=15, n_informative=8, n_classes=3, random_state=42)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
     models = {
-        "Logistic Regression": LogisticRegression(), 
-        "Gaussian Naive Bayes": GaussianNB(), 
-        "SVM": SVC(), 
+        "Logistic Regression": LogisticRegression(), "Gaussian Naive Bayes": GaussianNB(), "SVM": SVC(), 
         "Random Forest": RandomForestClassifier(random_state=42), 
         "LightGBM": lgb.LGBMClassifier(random_state=42, verbosity=-1),
         "XGBoost": xgb.XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='mlogloss')
     }
-
-    results = {}
-    for name, model in models.items():
-        model.fit(X_train, y_train)
-        results[name] = accuracy_score(y_test, model.predict(X_test))
-
+    results = {name: accuracy_score(y_test, model.fit(X_train, y_train).predict(X_test)) for name, model in models.items()}
     df_results = pd.DataFrame.from_dict(results, orient='index', columns=['Accuracy']).sort_values('Accuracy', ascending=False).reset_index()
     df_results.rename(columns={'index': 'Modelo'}, inplace=True)
     return df_results
+
+@st.cache_data
+def run_advanced_clustering(_df):
+    """Performs K-Means, UMAP, and HDBSCAN clustering. Cached for performance."""
+    try:
+        import umap
+        import hdbscan
+    except ImportError:
+        return None
+    
+    df_clustered = _df.copy()
+    data_points = df_clustered[['lat', 'lon']].values
+    
+    kmeans_labels = KMeans(n_clusters=4, random_state=42, n_init='auto').fit_predict(data_points)
+    df_clustered['KMeans_Cluster'] = kmeans_labels
+    
+    reducer = umap.UMAP(n_neighbors=20, min_dist=0.0, n_components=2, random_state=42)
+    embedding = reducer.fit_transform(data_points)
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=20)
+    hdbscan_labels = clusterer.fit_predict(embedding)
+    df_clustered['UMAP_Cluster'] = hdbscan_labels
+    return df_clustered
+
+@st.cache_data
+def generate_prophet_forecast(days_to_forecast):
+    """Fits Prophet model and generates forecast. Cached for performance."""
+    try:
+        from prophet import Prophet
+    except ImportError:
+        return None, None, None, None
+
+    df = pd.DataFrame({'ds': pd.date_range("2022-01-01", periods=365)})
+    df['y'] = 50 + (df['ds'].dt.dayofweek // 5) * 20 + np.sin(df.index / 365 * 4 * np.pi) * 10 + np.random.randn(365) * 4
+    
+    model = Prophet(weekly_seasonality=True, yearly_seasonality=True)
+    model.fit(df)
+    future_df = model.make_future_dataframe(periods=days_to_forecast)
+    forecast = model.predict(future_df)
+    
+    last_forecast_day = forecast.iloc[-1]['ds']
+    historical_avg = df[df['ds'].dt.dayofweek == last_forecast_day.dayofweek]['y'].mean()
+    predicted_val = forecast.iloc[-1]['yhat']
+    
+    return model, forecast, historical_avg, predicted_val
 
 class AIEvolutionPage(AbstractPage):
     def render(self) -> None:
@@ -378,13 +410,15 @@ class AIEvolutionPage(AbstractPage):
             """)
         
         if st.button("▶️ Entrenar y Comparar Clasificadores"):
-            with st.spinner("Entrenando modelos... (la primera ejecución puede ser lenta)"):
+            with st.spinner("Entrenando modelos... (la primera ejecución es lenta, las siguientes serán instantáneas)"):
                 df_results = train_and_evaluate_models()
             
             if df_results is not None:
                 st.subheader("Resultados de la Comparación")
                 fig = px.bar(df_results, x='Modelo', y='Accuracy', title='Comparación de Precisión de Clasificadores', text_auto='.3%')
                 st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.error("Por favor instale las librerías avanzadas: pip install lightgbm xgboost")
 
     def render_umap_tab(self):
         st.header("Metodología Propuesta: Reducción de Dimensionalidad Topológica con UMAP")
@@ -426,43 +460,25 @@ class AIEvolutionPage(AbstractPage):
             """)
 
         if st.button("📊 Ejecutar Comparación de Métodos de Clustering"):
-            with st.spinner("Generando embeddings con UMAP, agrupando y comparando... (puede requerir instalar umap-learn y hdbscan)"):
-                try:
-                    import umap
-                    import hdbscan
-                except ImportError:
-                    st.error("Por favor instale las librerías requeridas: pip install umap-learn hdbscan")
-                    return
-                
+            with st.spinner("Generando clusters... (la primera ejecución es lenta, las siguientes serán instantáneas)"):
                 df_calls, _ = load_base_data()
-                data_points = df_calls[['lat', 'lon']].values
-                
-                # Baseline: K-Means
-                kmeans_labels = KMeans(n_clusters=4, random_state=42, n_init='auto').fit_predict(data_points)
-                df_calls['KMeans_Cluster'] = kmeans_labels
-                
-                # Proposed: UMAP + HDBSCAN
-                reducer = umap.UMAP(n_neighbors=20, min_dist=0.0, n_components=2, random_state=42)
-                embedding = reducer.fit_transform(data_points)
-                clusterer = hdbscan.HDBSCAN(min_cluster_size=20)
-                hdbscan_labels = clusterer.fit_predict(embedding)
-                df_calls['UMAP_Cluster'] = hdbscan_labels
-                
+                df_clustered = run_advanced_clustering(df_calls)
+            
+            if df_clustered is not None:
                 st.subheader("Resultados de la Comparación de Clustering")
                 col1, col2 = st.columns(2)
                 with col1:
-                    fig1 = px.scatter_mapbox(df_calls, lat="lat", lon="lon", color=df_calls['KMeans_Cluster'].astype(str),
+                    fig1 = px.scatter_mapbox(df_clustered, lat="lat", lon="lon", color=df_clustered['KMeans_Cluster'].astype(str),
                                              title="Clusters Geoespaciales (K-Means)", mapbox_style="carto-positron",
-                                             category_orders={"color": sorted(df_calls['KMeans_Cluster'].astype(str).unique())},
+                                             category_orders={"color": sorted(df_clustered['KMeans_Cluster'].astype(str).unique())},
                                              labels={"color": "Cluster K-Means"})
                     st.plotly_chart(fig1, use_container_width=True)
                 with col2:
-                    fig2 = px.scatter_mapbox(df_calls, lat="lat", lon="lon", color=df_calls['UMAP_Cluster'].astype(str),
+                    fig2 = px.scatter_mapbox(df_clustered, lat="lat", lon="lon", color=df_clustered['UMAP_Cluster'].astype(str),
                                              title="Clusters Geoespaciales (UMAP+HDBSCAN)", mapbox_style="carto-positron",
-                                             category_orders={"color": sorted(df_calls['UMAP_Cluster'].astype(str).unique())},
+                                             category_orders={"color": sorted(df_clustered['UMAP_Cluster'].astype(str).unique())},
                                              labels={"color": "Cluster UMAP"})
                     st.plotly_chart(fig2, use_container_width=True)
-
                 with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
                     st.markdown("""
                     **Análisis Comparativo:**
@@ -472,6 +488,8 @@ class AIEvolutionPage(AbstractPage):
                     **Implicación Científica y Operacional:**
                     La capacidad de UMAP para respetar la topología de los datos y la habilidad de HDBSCAN para manejar la densidad y el ruido proporcionan una segmentación de la demanda mucho más realista y matizada. Para la planificación de SME, esto es invaluable. Permite distinguir entre **zonas de demanda predecibles y consistentes** (los clústeres de colores), que requieren la asignación de recursos permanentes, y la **demanda estocástica y dispersa** (el ruido), que podría ser manejada por unidades de reserva o políticas de despacho diferentes. Esto conduce a una definición de "puntos de demanda" que no solo es más precisa, sino también más rica en información operacional.
                     """)
+            else:
+                 st.error("Por favor instale las librerías requeridas: pip install umap-learn hdbscan")
 
     def render_prophet_tab(self):
         st.header("Metodología Propuesta: Pronóstico de Demanda con Modelos de Series de Tiempo")
@@ -514,26 +532,10 @@ class AIEvolutionPage(AbstractPage):
         
         days_to_forecast = st.slider("Parámetro: Horizonte de Pronóstico (días)", 7, 90, 30, key="prophet_slider")
         if st.button("📈 Generar Pronóstico de Demanda"):
-            with st.spinner("Calculando pronóstico de series de tiempo... (puede requerir instalar prophet)"):
-                try:
-                    from prophet import Prophet
-                except ImportError:
-                    st.error("Por favor instale Prophet: pip install prophet")
-                    return
-                
-                # Generar datos sintéticos con estacionalidades claras
-                df = pd.DataFrame({'ds': pd.date_range("2022-01-01", periods=365)})
-                df['y'] = 50 + (df['ds'].dt.dayofweek // 5) * 20 + np.sin(df.index / 365 * 4 * np.pi) * 10 + np.random.randn(365) * 4
-                
-                model = Prophet(weekly_seasonality=True, yearly_seasonality=True).fit(df)
-                future_df = model.make_future_dataframe(periods=days_to_forecast)
-                forecast = model.predict(future_df)
-                
-                # Para la comparación
-                last_forecast_day = forecast.iloc[-1]['ds']
-                historical_avg = df[df['ds'].dt.dayofweek == last_forecast_day.dayofweek]['y'].mean()
-                predicted_val = forecast.iloc[-1]['yhat']
-                
+            with st.spinner("Generando pronóstico... (las ejecuciones son cacheadas por cada valor del slider)"):
+                model, forecast, historical_avg, predicted_val = generate_prophet_forecast(days_to_forecast)
+            
+            if model is not None:
                 fig = model.plot(forecast)
                 st.pyplot(fig)
                 
@@ -542,13 +544,16 @@ class AIEvolutionPage(AbstractPage):
                 La gráfica muestra los datos históricos (puntos negros), el pronóstico del modelo (línea azul) y el intervalo de incertidumbre del 80% (área sombreada). El modelo ha capturado con éxito la tendencia y los patrones estacionales (e.g., picos en los fines de semana).
                 """)
                 col1, col2 = st.columns(2)
-                col1.metric(f"Promedio Histórico para un {last_forecast_day.strftime('%A')}", f"{historical_avg:.1f} llamadas")
-                col2.metric(f"Pronóstico para el Próximo {last_forecast_day.strftime('%A')}", f"{predicted_val:.1f} llamadas", delta=f"{predicted_val - historical_avg:.1f}")
+                last_forecast_day_str = forecast.iloc[-1]['ds'].strftime('%A')
+                col1.metric(f"Promedio Histórico para un {last_forecast_day_str}", f"{historical_avg:.1f} llamadas")
+                col2.metric(f"Pronóstico para el Próximo {last_forecast_day_str}", f"{predicted_val:.1f} llamadas", delta=f"{predicted_val - historical_avg:.1f}")
                 
                 st.markdown("""
                 **Implicación Científica y Operacional:**
                 Este enfoque permite una transición fundamental de una **optimización reactiva** (basada en promedios históricos) a una **optimización proactiva y anticipatoria**. En lugar de planificar para el "martes promedio", el sistema puede planificar para el "próximo martes", incorporando tendencias recientes y estacionalidades. Operacionalmente, esto significa que las ambulancias pueden ser reubicadas a zonas de alta demanda *pronosticada* horas antes de que ocurran los picos de llamadas, reduciendo así de manera fundamental los tiempos de respuesta.
                 """)
+            else:
+                st.error("Por favor instale Prophet: pip install prophet")
 
     def render_simpy_tab(self):
         st.header("Metodología Propuesta: Simulación de Sistemas y Aprendizaje por Refuerzo (RL)")
@@ -585,7 +590,7 @@ class AIEvolutionPage(AbstractPage):
             **3. Justificación Científica y Relevancia Operacional**
 
             - **Superación de las Heurísticas Simples:** Las políticas de despacho humanas a menudo se basan en heurísticas simples (e.g., "enviar siempre la unidad más cercana"). El RL permite al agente aprender **políticas complejas y no intuitivas**. Por ejemplo, podría aprender a no enviar la ambulancia más cercana a una llamada no crítica si esa ambulancia es la única que cubre una zona con alta probabilidad de una llamada cardíaca inminente, según el pronóstico de Prophet.
-            - **Adaptabilidad Dinámica:** Un agente de RL puede adaptarse a condiciones cambiantes. Si se produce un gran accidente de tráfico, el estado del sistema cambia drásticamente, y la política aprendida puede tomar decisiones que tengan en cuenta esta nueva realidad, algo que un plan de optimización estático no puede hacer.
+            - **Adaptabilidad Dinámica:** Un agente de RL puede adaptarse a condiciones cambiantes. Si se produce un gran accidente de tráfico, el estado del sistema cambia drasticamente, y la política aprendida puede tomar decisiones que tengan en cuenta esta nueva realidad, algo que un plan de optimización estático no puede hacer.
             """)
 
         st.header("Demostración: Simulación de un Sistema con Prioridad")
@@ -605,34 +610,28 @@ class AIEvolutionPage(AbstractPage):
             
             def call_process(env, fleet, is_priority):
                 arrival_time = env.now
-                priority_level = 1 if is_priority else 2 # Lower number is higher priority in SimPy
+                priority_level = 1 if is_priority else 2
                 with fleet.request(priority=priority_level) as request:
                     yield request
                     wait_time = env.now - arrival_time
-                    if is_priority:
-                        wait_times_priority.append(wait_time)
-                    else:
-                        wait_times_standard.append(wait_time)
-                    
-                    service_time = random.uniform(20, 40) # Time to handle call and become free again
-                    yield env.timeout(service_time)
+                    if is_priority: wait_times_priority.append(wait_time)
+                    else: wait_times_standard.append(wait_time)
+                    yield env.timeout(random.uniform(20, 40))
 
             def call_generator(env, fleet, interval):
-                for _ in range(500): # Simulate 500 calls
-                    is_priority_call = random.random() < 0.2 # 20% of calls are high-priority
+                for _ in range(500):
+                    is_priority_call = random.random() < 0.2
                     env.process(call_process(env, fleet, is_priority_call))
-                    # Wait for the next call according to a Poisson process
                     yield env.timeout(random.expovariate(1.0 / interval))
             
             env = simpy.Environment()
             fleet = simpy.PriorityResource(env, capacity=ambulances)
             env.process(call_generator(env, fleet, interval))
             env.run()
-            
             return np.mean(wait_times_priority) if wait_times_priority else 0, np.mean(wait_times_standard) if wait_times_standard else 0
 
         if st.button("🔬 Ejecutar Simulación de Sistema de Colas con Prioridad"):
-            with st.spinner("Simulando cientos de eventos de despacho... (puede requerir instalar simpy)"):
+            with st.spinner("Simulando... (las ejecuciones son cacheadas por cada combinación de parámetros)"):
                 priority_wait, standard_wait = run_dispatch_simulation(num_ambulances, avg_call_interval)
                 
                 if isinstance(priority_wait, str):
