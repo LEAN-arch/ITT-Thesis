@@ -15,10 +15,5 @@ prophet
 
 # For Discrete-Event System Simulation (SimPy)
 simpy
+lightgbm
 
-# For Graph Neural Networks (PyTorch and PyTorch Geometric)
-# It's often more reliable to install these manually if pip fails, e.g.:
-# pip install torch torchvision torchaudio
-# pip install torch-geometric
-torch
-torch-geometric
