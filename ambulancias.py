@@ -142,7 +142,7 @@ class ClusteringPage(AbstractPage):
     def render(self) -> None:
         super().render()
         st.markdown("El primer paso computacional es agregar las ubicaciones de miles de llamadas históricas en un conjunto manejable de 'puntos de demanda' mediante K-Means.")
-with st.expander("Metodología y Fundamento Matemático: K-Means", expanded=True):
+        with st.expander("Metodología y Fundamento Matemático: K-Means", expanded=True):
             st.markdown(r"""
             **1. Formulación del Problema**
 
