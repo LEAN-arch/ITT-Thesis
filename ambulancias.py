@@ -56,8 +56,11 @@ def load_base_data():
     lat_min, lat_max = 32.40, 32.55; lon_min, lon_max = -117.12, -116.60
     num_llamadas = 500; np.random.seed(42)
     api_time = np.random.gamma(shape=4, scale=5, size=num_llamadas) + 5
-    real_time = api_time * np.random.normal(0.8, 0.1, size=num_llamadas)
-    corrected_time = real_time + np.random.normal(0, 2, size=num_llamadas)
+    real_time_factor = np.random.normal(0.8, 0.1, size=num_llamadas)
+    real_time = api_time * real_time_factor
+    correction_factor = np.random.normal(0, 2, size=num_llamadas)
+    corrected_time = real_time + correction_factor
+    
     df_llamadas = pd.DataFrame({
         'lat': np.random.uniform(lat_min, lat_max, num_llamadas),
         'lon': np.random.uniform(lon_min, lon_max, num_llamadas),
@@ -96,16 +99,20 @@ class ThesisSummaryPage(AbstractPage):
         st.markdown("Esta aplicación presenta los hallazgos fundamentales de la investigación doctoral sobre la optimización de Servicios Médicos de Emergencia (SME) en Tijuana, México.")
         with st.expander("Planteamiento del Problema y Justificación Científica", expanded=True):
             st.markdown(r"""
-            El problema central es la optimización de un sistema estocástico y dinámico con recursos limitados. La eficacia de los SME se mide principalmente por el **tiempo de respuesta**. Las estimaciones de tiempo de las API comerciales son sistemáticamente incorrectas. Esta investigación aborda esta brecha mediante la integración de **Investigación de Operaciones** y **Aprendizaje Automático**.
+            El problema central es la optimización de un sistema estocástico y dinámico con recursos limitados. La eficacia de los SME se mide principalmente por el **tiempo de respuesta**, una variable crítica que impacta directamente en la morbilidad y mortalidad de los pacientes. En entornos urbanos complejos como Tijuana, las estimaciones de tiempo de viaje de las API comerciales son sistemáticamente incorrectas, lo que invalida los modelos de optimización estándar.
+
+            Esta investigación aborda esta brecha fundamental mediante la **integración sinérgica de dos campos matemáticos**:
+            1.  **Investigación de Operaciones:** Para la formulación del problema de localización-asignación.
+            2.  **Aprendizaje Automático:** Para la calibración empírica de los parámetros del modelo a partir de datos históricos, específicamente el tiempo de viaje.
             """)
         st.header("Contribuciones Científicas Principales")
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("1. Modelo Híbrido de Corrección de Tiempos")
-            st.markdown("Un modelo **Random Forest** clasifica el *tipo de error* de la API, transformando un problema de regresión ruidoso en una tarea de clasificación robusta, logrando una **mejora del 20% en la cobertura**.")
+            st.markdown("La contribución metodológica principal es un **modelo de aprendizaje supervisado (Random Forest)** que no predice el tiempo directamente, sino que clasifica el *tipo de error* de la API. Este enfoque de clasificación transforma un problema de regresión ruidoso en una tarea de clasificación más robusta, demostrando una **mejora del 20% en la cobertura** del sistema de optimización resultante.")
         with col2:
             st.subheader("2. Marco de Solución Sostenible")
-            st.markdown("La investigación valida el uso de herramientas **open-source (OSRM)**, permitiendo construir sistemas de alto rendimiento en entornos con recursos limitados.")
+            st.markdown("La investigación valida el uso de **herramientas de código abierto (OSRM)**, demostrando que es posible construir sistemas de optimización de alto rendimiento sin depender de costosas API comerciales.")
 
 class TimeCorrectionPage(AbstractPage):
     def render(self) -> None:
@@ -290,7 +297,7 @@ class AIEvolutionPage(AbstractPage):
         
         @st.cache_data
         def run_dispatch_simulation(ambulances, interval):
-            import simpy
+            import simpy # Import simpy inside the function
             wait_times_priority = []; wait_times_standard = []
             
             def call_process(env, fleet, is_priority):
