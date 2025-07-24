@@ -1,19 +1,15 @@
-# --- Core Dashboard, Data Manipulation, and Base ML ---
+# Core Dashboard, Data Manipulation, and Base ML
 numpy
 pandas
 plotly
 scikit-learn
 streamlit
 
-# --- Advanced AI/ML Libraries for Interactive Demonstrations ---
-
-# For Gradient Boosting Models (XGBoost)
-xgboost
-
-# For Spatio-Temporal Forecasting (Prophet by Meta)
-prophet
-
-# For Discrete-Event System Simulation (SimPy)
-simpy
+# Advanced AI/ML Libraries for Interactive Demonstrations
 lightgbm
+xgboost
+prophet
+simpy
 
+# For advanced dimensionality reduction
+umap-learn
