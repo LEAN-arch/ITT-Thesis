@@ -259,8 +259,72 @@ class AIEvolutionPage(AbstractPage):
     def render_classifier_comparison_tab(self):
         st.header("Análisis Comparativo de Algoritmos de Clasificación")
         st.markdown("Un análisis exhaustivo requiere la comparación del **Random Forest** con otros paradigmas de clasificación para validar su optimalidad.")
-        with st.expander("Metodologías y Fundamentos Matemáticos", expanded=True):
-            st.markdown("- **Regresión Logística:** Modelo lineal generalizado.\n- **SVM:** Encuentra un hiperplano de máxima separación.\n- **Naive Bayes:** Modelo probabilístico basado en el teorema de Bayes.\n- **LightGBM:** Ensamblaje de árboles construidos secuencialmente para corregir errores.")
+        with st.expander("Metodologías y Fundamentos Matemáticos de los Clasificadores", expanded=True):
+            st.markdown(r"""
+            Para validar rigurosamente la elección del modelo de la tesis (Random Forest), se realiza un análisis comparativo contra un conjunto diverso de algoritmos de clasificación. Cada algoritmo representa una rama fundamental del aprendizaje automático y se basa en principios matemáticos distintos. Esto nos permite explorar la naturaleza del problema y la geometría del espacio de características.
+
+            ---
+            **1. Regresión Logística (Modelo Lineal Generalizado)**
+            
+            **Fundamento:** La Regresión Logística es un modelo estadístico fundamental que, a pesar de su nombre, se utiliza para la **clasificación**. Pertenece a la familia de los Modelos Lineales Generalizados (GLM) y sirve como una base de referencia (baseline) crucial para cualquier problema de clasificación. Su objetivo es modelar la probabilidad de que una observación pertenezca a una clase particular.
+            
+            **Formulación Matemática:** Para un problema de clasificación binaria, el modelo asume que el **logaritmo de las probabilidades** (conocido como *log-odds* o *logit*) es una combinación lineal de las características de entrada $x_i$:
+            """)
+            st.latex(r''' \ln\left(\frac{p(y=1|x)}{1-p(y=1|x)}\right) = \beta_0 + \beta_1x_1 + \dots + \beta_nx_n = \beta^T x ''')
+            st.markdown(r"""
+            La función logit mapea el rango de probabilidad $[0, 1]$ al espacio de los números reales $(-\infty, \infty)$, lo que permite modelarlo linealmente. Para obtener la probabilidad predicha, se aplica la función inversa del logit, que es la **función logística (o sigmoide)**:
+            """)
+            st.latex(r''' p(y=1|x) = \frac{1}{1 + e^{-(\beta^T x)}} ''')
+            st.markdown(r"""
+            El modelo aprende el vector de coeficientes $\beta$ mediante la **Maximización de la Verosimilitud** (Maximum Likelihood Estimation, MLE), que encuentra los parámetros que maximizan la probabilidad de observar los datos de entrenamiento dados.
+            
+            **Justificación Científica:** Se incluye como una **base de referencia fundamental**. Su naturaleza lineal lo hace altamente interpretable (los coeficientes $\beta_i$ indican la importancia y dirección de la influencia de cada característica). Sin embargo, su principal limitación es que asume una **frontera de decisión lineal** entre las clases. Su rendimiento nos indica si el problema es simple o si requiere modelos más complejos y no lineales.
+
+            ---
+            **2. Máquinas de Vectores de Soporte (SVM con Kernel)**
+            
+            **Fundamento:** Las Máquinas de Vectores de Soporte (SVM) son una clase de modelos discriminativos no lineales que buscan encontrar un **hiperplano óptimo** que separe las clases en un espacio de características.
+            
+            **Formulación Matemática:** El objetivo es encontrar el hiperplano que **maximice el margen**, definido como la distancia entre el hiperplano y los puntos de datos más cercanos de cada clase. Estos puntos se conocen como "vectores de soporte". Esto se formula como un problema de optimización convexa, lo que garantiza una solución global única. Para datos no separables linealmente, se utiliza el **"truco del kernel" (kernel trick)**. Este mapea implícitamente los datos a un espacio de características de mayor dimensionalidad donde sí son linealmente separables, sin necesidad de calcular explícitamente las coordenadas en ese espacio. El kernel de base radial (RBF) es una elección común:
+            """)
+            st.latex(r''' K(x_i, x_j) = \exp(-\gamma \|x_i - x_j\|^2) ''')
+            st.markdown(r"""
+            **Justificación Científica:** Las SVM son extremadamente potentes para capturar **fronteras de decisión no lineales y complejas**. Son robustas en espacios de alta dimensionalidad y efectivas cuando el número de dimensiones es mayor que el número de muestras. Se incluyen en esta comparación para probar la hipótesis de que la relación entre las características del viaje y la clase de error de tiempo es altamente no lineal y compleja.
+
+            ---
+            **3. Naive Bayes Gaussiano (Modelo Probabilístico Generativo)**
+            
+            **Fundamento:** A diferencia de los modelos anteriores (discriminativos), Naive Bayes es un **modelo generativo**. En lugar de aprender una frontera que separe las clases, aprende un modelo de la distribución de probabilidad de cada clase. Luego, utiliza el Teorema de Bayes para calcular la probabilidad posterior de que una nueva observación pertenezca a cada clase.
+            
+            **Formulación Matemática:** El teorema de Bayes establece:
+            """)
+            st.latex(r''' P(C_k|x_1, \dots, x_n) = \frac{P(x_1, \dots, x_n|C_k)P(C_k)}{P(x_1, \dots, x_n)} ''')
+            st.markdown(r"""
+            Donde $C_k$ es la clase $k$. El modelo hace la suposición "ingenua" (naive) de **independencia condicional** entre las características, lo que simplifica enormemente el cálculo de la verosimilitud $P(x|C_k)$:
+            """)
+            st.latex(r''' P(x_1, \dots, x_n|C_k) = \prod_{i=1}^{n} P(x_i|C_k) ''')
+            st.markdown(r"""
+            En la variante **Gaussiana**, se asume que la verosimilitud de cada característica continua $P(x_i|C_k)$ sigue una distribución Normal (Gaussiana), cuyos parámetros ($\mu_{ik}$, $\sigma_{ik}$) se estiman a partir de los datos de entrenamiento.
+            
+            **Justificación Científica:** Es un modelo computacionalmente muy eficiente y que a menudo funciona sorprendentemente bien, incluso cuando su suposición de independencia no se cumple estrictamente. Se incluye para evaluar si un modelo probabilístico simple, a pesar de sus fuertes suposiciones, puede capturar la señal principal del problema.
+
+            ---
+            **4. Gradient Boosting (LightGBM)**
+            
+            **Fundamento:** LightGBM es una implementación de vanguardia del **Gradient Boosting**, un método de ensamblaje que, a diferencia de Random Forest (que utiliza *bagging*), se basa en el **boosting**. Construye modelos de forma secuencial, donde cada nuevo modelo se enfoca en corregir los errores cometidos por el ensamblaje de los modelos anteriores.
+            
+            **Formulación Matemática:** El modelo se construye de forma aditiva. Si $F_{t-1}(x)$ es el ensamblaje de $t-1$ árboles, el nuevo modelo $F_t(x)$ se define como:
+            """)
+            st.latex(r''' F_t(x) = F_{t-1}(x) + \nu f_t(x) ''')
+            st.markdown(r"""
+            Donde $f_t(x)$ es un nuevo árbol de decisión y $\nu$ es la tasa de aprendizaje. La clave es que el nuevo árbol $f_t(x)$ no se entrena sobre los datos originales, sino sobre los **pseudo-residuos**, que son el **gradiente negativo** de la función de pérdida (por ejemplo, *log-loss*) con respecto a la predicción del modelo anterior:
+            """)
+            st.latex(r''' r_{it} = -\left[\frac{\partial l(y_i, F(x_i))}{\partial F(x_i)}\right]_{F(x)=F_{t-1}(x)} \quad \text{para } i=1,\dots,n ''')
+            st.markdown(r"""
+            Entrenar un árbol para que se ajuste a estos residuos es una forma de realizar un descenso por gradiente en el espacio de las funciones.
+            
+            **Justificación Científica:** LightGBM representa el estado del arte para datos tabulares. Se incluye para establecer un **límite superior de rendimiento práctico**. Su capacidad para manejar un gran número de características, su eficiencia (utiliza histogramas para encontrar los mejores splits) y su inclusión de regularización lo convierten en un candidato extremadamente fuerte para un modelo de producción final. Su rendimiento en comparación con el Random Forest de la tesis es una medida clave del potencial de mejora.
+            """)
         if st.button("▶️ Entrenar y Comparar Clasificadores"):
             with st.spinner("Entrenando 5 modelos distintos..."):
                 import lightgbm as lgb
@@ -273,8 +337,86 @@ class AIEvolutionPage(AbstractPage):
                 st.plotly_chart(fig, use_container_width=True)
 
     def render_umap_tab(self):
-        st.header("Reducción de Dimensionalidad Avanzada con UMAP")
-        st.markdown("**UMAP (Uniform Manifold Approximation and Projection)** es un algoritmo de la topología algebraica superior a K-Means para encontrar la estructura intrínseca de los datos.")
+    def render_umap_tab(self):
+        st.header("Metodología Propuesta: Reducción de Dimensionalidad Topológica con UMAP")
+        st.markdown("""
+        Mientras que K-Means es eficaz para identificar centros de masa, se basa en una suposición fundamental de geometría Euclidiana y clústeres de forma convexa (globular). Proponemos una metodología más avanzada para el clustering de la demanda que puede capturar estructuras geoespaciales más complejas y no lineales.
+
+        Este enfoque de dos pasos consiste en:
+        1.  **Reducción de Dimensionalidad:** Utilizar **UMAP (Uniform Manifold Approximation and Projection)** para aprender una representación de baja dimensión de los datos que preserve su estructura topológica intrínseca.
+        2.  **Clustering Basado en Densidad:** Aplicar un algoritmo de clustering como **HDBSCAN** sobre esta nueva representación (embedding) para identificar clústeres de formas arbitrarias y manejar el ruido.
+        """)
+
+        with st.expander("Fundamento Matemático Detallado: UMAP", expanded=True):
+            st.markdown(r"""
+            **1. Fundamento en Topología Algebraica y Geometría Riemanniana**
+
+            UMAP se basa en un sólido marco matemático. Su objetivo principal no es simplemente reducir dimensiones, sino aprender una representación de una **variedad (manifold)** de alta dimensión en la que se supone que residen los datos.
+
+            **2. Procedimiento Algorítmico**
+
+            El algoritmo se puede resumir en dos fases principales:
+
+            **Fase 1: Construcción de un Grafo Topológico en Alta Dimensión**
+            - Para cada punto de datos $x_i$, UMAP encuentra sus $k$ vecinos más cercanos.
+            - Utiliza esta información para construir una representación de grafo difuso del conjunto de datos. La ponderación de la arista entre dos puntos, $x_i$ y $x_j$, representa la probabilidad de que estos dos puntos estén conectados en la variedad subyacente. Esta probabilidad se calcula de forma que la conectividad sea localmente adaptativa: en regiones densas, la "métrica" se estira, mientras que en regiones dispersas se contrae. Esto se logra normalizando las distancias con respecto a la distancia al $k$-ésimo vecino más cercano de cada punto, $\rho_i$.
+
+            **Fase 2: Optimización de una Incrustación de Baja Dimensión**
+            - UMAP crea una estructura equivalente de baja dimensión (inicializada aleatoriamente).
+            - Luego, optimiza la posición de los puntos en esta incrustación de baja dimensión para que su grafo difuso sea lo más similar posible al grafo de alta dimensión. La métrica de "similitud" es la **entropía cruzada** (cross-entropy), una función de pérdida fundamental de la teoría de la información. La función objetivo a minimizar es:
+            """)
+            st.latex(r''' C(Y) = \sum_{(i,j) \in E} \left[ w_h(y_i, y_j) \log\left(\frac{w_h(y_i, y_j)}{w_l(y_i, y_j)}\right) + (1-w_h(y_i, y_j)) \log\left(\frac{1-w_h(y_i, y_j)}{1-w_l(y_i, y_j)}\right) \right] ''')
+            st.markdown(r"""
+            Donde $w_h$ son los pesos de las aristas en el espacio de alta dimensión y $w_l$ son los pesos en la incrustación de baja dimensión. Esta optimización se realiza eficientemente mediante descenso de gradiente estocástico.
+            
+            **3. Justificación Científica y Relevancia Operacional**
+
+            - **Preservación de la Estructura Global:** A diferencia de algoritmos como t-SNE que se enfocan principalmente en la estructura local, UMAP hace un mejor trabajo preservando tanto la estructura local de los vecinos como la estructura global de los clústeres.
+            - **Robustez a la "Maldición de la Dimensionalidad":** UMAP es particularmente eficaz en la búsqueda de estructura en datos de alta dimensionalidad (aunque aquí lo aplicamos en 2D para ilustrar su capacidad de encontrar estructura no-Euclidiana).
+            - **Combinación con HDBSCAN:** El resultado de UMAP es una representación donde la densidad de los clústeres se corresponde con la densidad en la variedad original. Esto hace que sea ideal para ser procesado por un algoritmo de clustering basado en densidad como HDBSCAN, que puede identificar clústeres de formas arbitrarias y, crucialmente, identificar puntos como **ruido (outliers)**, algo que K-Means no puede hacer.
+            """)
+
+        if st.button("📊 Ejecutar Comparación de Métodos de Clustering"):
+            with st.spinner("Generando embeddings con UMAP, agrupando y comparando con K-Means..."):
+                import umap
+                from sklearn.cluster import HDBSCAN
+                
+                df_calls, _ = load_base_data()
+                data_points = df_calls[['lat', 'lon']].values
+                
+                # Baseline: K-Means
+                kmeans_labels = KMeans(n_clusters=4, random_state=42, n_init='auto').fit_predict(data_points)
+                df_calls['KMeans_Cluster'] = kmeans_labels
+                
+                # Proposed: UMAP + HDBSCAN
+                reducer = umap.UMAP(n_neighbors=20, min_dist=0.0, n_components=2, random_state=42)
+                embedding = reducer.fit_transform(data_points)
+                hdbscan_labels = HDBSCAN(min_cluster_size=20).fit_predict(embedding)
+                df_calls['UMAP_Cluster'] = hdbscan_labels
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    fig1 = px.scatter_mapbox(df_calls, lat="lat", lon="lon", color=df_calls['KMeans_Cluster'].astype(str),
+                                             title="Clusters Geoespaciales (K-Means)", mapbox_style="carto-positron",
+                                             category_orders={"color": sorted(df_calls['KMeans_Cluster'].astype(str).unique())},
+                                             labels={"color": "Cluster K-Means"})
+                    st.plotly_chart(fig1, use_container_width=True)
+                with col2:
+                    fig2 = px.scatter_mapbox(df_calls, lat="lat", lon="lon", color=df_calls['UMAP_Cluster'].astype(str),
+                                             title="Clusters Geoespaciales (UMAP+HDBSCAN)", mapbox_style="carto-positron",
+                                             category_orders={"color": sorted(df_calls['UMAP_Cluster'].astype(str).unique())},
+                                             labels={"color": "Cluster UMAP"})
+                    st.plotly_chart(fig2, use_container_width=True)
+
+                with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
+                    st.markdown("""
+                    **Análisis Comparativo:**
+                    - **K-Means (Izquierda):** Como se esperaba, el algoritmo impone una estructura geométrica, dividiendo el espacio en regiones convexas (voronoi). Todos los puntos son forzados a pertenecer a un clúster, independientemente de si son atípicos.
+                    - **UMAP + HDBSCAN (Derecha):** Este método produce un resultado cualitativamente diferente y más revelador. Es capaz de identificar clústeres de formas más orgánicas y no convexas, que pueden reflejar mejor la geografía real de la demanda (por ejemplo, a lo largo de una carretera principal). Crucialmente, identifica puntos como **ruido** (en gris, clúster -1), que son llamadas aisladas que no pertenecen a ninguna zona de alta densidad.
+
+                    **Implicación Científica y Operacional:**
+                    La capacidad de UMAP para respetar la topología de los datos y la habilidad de HDBSCAN para manejar la densidad y el ruido proporcionan una segmentación de la demanda mucho más realista y matizada. Para la planificación de SME, esto es invaluable. Permite distinguir entre **zonas de demanda predecibles y consistentes** (los clústeres de colores), que requieren la asignación de recursos permanentes, y la **demanda estocástica y dispersa** (el ruido), que podría ser manejada por unidades de reserva o políticas de despacho diferentes. Esto conduce a una definición de "puntos de demanda" que no solo es más precisa, sino también más rica en información operacional.
+                    """)
         if st.button("📊 Ejecutar K-Means vs. UMAP + HDBSCAN"):
             with st.spinner("Generando embeddings y agrupando..."):
                 import umap
@@ -300,8 +442,77 @@ class AIEvolutionPage(AbstractPage):
                     """)
 
     def render_prophet_tab(self):
-        st.header("Metodología: Pronóstico de Demanda con Prophet")
-        st.markdown("Se utiliza **Prophet** de Meta, un modelo de series de tiempo bayesiano diseñado para manejar estacionalidades múltiples.")
+        st.header("Metodología Propuesta: Pronóstico de Demanda con Modelos de Series de Tiempo")
+        st.markdown("""
+        El clustering de la demanda sobre datos históricos es un enfoque **reactivo**: optimiza las ubicaciones basándose en dónde *ocurrieron* las emergencias en el pasado. Un sistema de despacho de vanguardia debe ser **proactivo**, posicionando los recursos para satisfacer la demanda *antes* de que ocurra. Esto requiere pasar de un análisis de distribución a un problema de **pronóstico de series de tiempo**.
+
+        **Formulación del Problema:**
+        Dado un historial de llamadas de emergencia agregadas por intervalo de tiempo (e.g., por hora o por día), $Y = \{y_1, y_2, \dots, y_T\}$, el objetivo es construir un modelo $f$ que pueda predecir el número de llamadas en un tiempo futuro $T+h$, es decir, $\hat{y}_{T+h} = f(Y)$.
+        """)
+
+        with st.expander("Fundamento Matemático Detallado: Prophet", expanded=True):
+            st.markdown(r"""
+            **1. Metodología: Modelo Aditivo Generalizado (GAM)**
+
+            Se propone utilizar **Prophet**, una librería de pronóstico de Meta AI. Prophet está específicamente diseñado para series de tiempo de negocios que exhiben múltiples estacionalidades y son robustas a datos faltantes y valores atípicos. Se basa en un **Modelo Aditivo Generalizado (GAM)**, donde las no linealidades se modelan como componentes sumables.
+
+            **2. Formulación Matemática**
+
+            El modelo Prophet descompone la serie de tiempo $y(t)$ en tres componentes principales más un término de error:
+            """)
+            st.latex(r''' y(t) = g(t) + s(t) + h(t) + \epsilon_t ''')
+            st.markdown(r"""
+            Donde:
+            - **$g(t)$ es la componente de tendencia (Trend):** Modela cambios no periódicos a largo plazo en los datos. Prophet utiliza un modelo de crecimiento lineal por partes (piecewise linear) o logístico, lo que le permite detectar y adaptarse automáticamente a los cambios en la tasa de crecimiento de la demanda.
+            - **$s(t)$ es la componente de estacionalidad (Seasonality):** Modela cambios periódicos, como patrones diarios, semanales o anuales. Prophet modela la estacionalidad utilizando una **serie de Fourier**, lo que le permite ajustarse a patrones periódicos de formas arbitrarias y suaves. Para un período $P$ (e.g., $P=7$ para la estacionalidad semanal), la aproximación es:
+            """)
+            st.latex(r''' s(t) = \sum_{n=1}^{N} \left(a_n \cos\left(\frac{2\pi nt}{P}\right) + b_n \sin\left(\frac{2\pi nt}{P}\right)\right) ''')
+            st.markdown(r"""
+            - **$h(t)$ es la componente de feriados y eventos (Holidays):** Modela los efectos de eventos irregulares pero predecibles que no siguen un patrón periódico, como días festivos, eventos deportivos importantes o conciertos.
+            - **$\epsilon_t$ es el término de error:** Representa el ruido idiosincrático que no es capturado por el modelo. Se asume que sigue una distribución Normal.
+
+            El ajuste del modelo se realiza dentro de un marco **Bayesiano**, lo que permite a Prophet proporcionar no solo un pronóstico puntual, sino también un **intervalo de incertidumbre** que cuantifica la confianza en la predicción.
+            
+            **3. Justificación Científica y Relevancia Operacional**
+
+            - **Robustez y Automatización:** A diferencia de los modelos ARIMA clásicos, Prophet no requiere que la serie de tiempo sea estacionaria y es altamente resistente a datos faltantes. Automatiza gran parte de la selección de hiperparámetros, haciéndolo ideal para implementaciones a escala.
+            - **Manejo de Múltiples Estacionalidades:** La demanda de SME tiene fuertes estacionalidades a nivel de hora del día (más accidentes en hora pico), día de la semana (más incidentes relacionados con el ocio los fines de semana) y año (efectos estacionales como la temporada de gripe). El enfoque de series de Fourier de Prophet está diseñado precisamente para capturar estas interacciones complejas.
+            - **Cuantificación de la Incertidumbre:** El marco Bayesiano proporciona intervalos de confianza, lo cual es crucial para la toma de decisiones. Un pronóstico con alta incertidumbre podría llevar a una estrategia de posicionamiento más conservadora, mientras que un pronóstico de alta confianza podría justificar un posicionamiento más agresivo de los recursos.
+            """)
+        
+        days_to_forecast = st.slider("Parámetro: Horizonte de Pronóstico (días)", 7, 90, 30, key="prophet_slider")
+        if st.button("📈 Generar Pronóstico de Demanda"):
+            with st.spinner("Calculando pronóstico de series de tiempo... (La primera ejecución puede ser lenta)"):
+                from prophet import Prophet
+                
+                # Generar datos sintéticos con estacionalidades claras
+                df = pd.DataFrame({'ds': pd.date_range("2022-01-01", periods=365)})
+                df['y'] = 50 + (df['ds'].dt.dayofweek // 5) * 20 + np.sin(df.index / 365 * 4 * np.pi) * 10 + np.random.randn(365) * 4
+                
+                model = Prophet(weekly_seasonality=True, yearly_seasonality=True).fit(df)
+                future_df = model.make_future_dataframe(periods=days_to_forecast)
+                forecast = model.predict(future_df)
+                
+                # Para la comparación
+                last_forecast_day = forecast.iloc[-1]['ds']
+                historical_avg = df[df['ds'].dt.dayofweek == last_forecast_day.dayofweek]['y'].mean()
+                predicted_val = forecast.iloc[-1]['yhat']
+                
+                fig = model.plot(forecast)
+                st.pyplot(fig)
+                
+                st.subheader("Análisis de Resultados e Implicaciones Científicas")
+                st.markdown("""
+                La gráfica muestra los datos históricos (puntos negros), el pronóstico del modelo (línea azul) y el intervalo de incertidumbre del 80% (área sombreada). El modelo ha capturado con éxito la tendencia y los patrones estacionales (e.g., picos en los fines de semana).
+                """)
+                col1, col2 = st.columns(2)
+                col1.metric(f"Promedio Histórico para un {last_forecast_day.strftime('%A')}", f"{historical_avg:.1f} llamadas")
+                col2.metric(f"Pronóstico para el Próximo {last_forecast_day.strftime('%A')}", f"{predicted_val:.1f} llamadas", delta=f"{predicted_val - historical_avg:.1f}")
+                
+                st.markdown("""
+                **Implicación Científica y Operacional:**
+                Este enfoque permite una transición fundamental de una **optimización reactiva** (basada en promedios históricos) a una **optimización proactiva y anticipatoria**. En lugar de planificar para el "martes promedio", el sistema puede planificar para el "próximo martes", incorporando tendencias recientes y estacionalidades. Operacionalmente, esto significa que las ambulancias pueden ser reubicadas a zonas de alta demanda *pronosticada* horas antes de que ocurran los picos de llamadas, reduciendo así de manera fundamental los tiempos de respuesta.
+                """)
         with st.expander("Fundamento Matemático: Prophet"):
             st.markdown(r"Prophet modela una serie de tiempo como una suma de componentes:")
             st.latex(r''' y(t) = g(t) + s(t) + h(t) + \epsilon_t ''')
@@ -323,8 +534,103 @@ class AIEvolutionPage(AbstractPage):
                 col2.metric(f"Pronóstico para este Día", f"{predicted_val:.1f} llamadas", delta=f"{predicted_val - historical_avg:.1f}")
 
     def render_simpy_tab(self):
-        st.header("Metodología: Simulación y Aprendizaje por Refuerzo (RL)")
-        st.markdown("Se construye un **'gemelo digital'** con **SimPy** para servir como entorno de entrenamiento para un agente de RL.")
+        st.header("Metodología Propuesta: Simulación de Sistemas y Aprendizaje por Refuerzo (RL)")
+        st.markdown("""
+        Los métodos de optimización clásicos, como el RDSM, son excelentes para la **planificación estratégica** (dónde ubicar las bases a largo plazo). Sin embargo, para la **toma de decisiones tácticas en tiempo real** (qué ambulancia enviar a qué llamada *ahora mismo*), se requiere un enfoque más dinámico. Proponemos un marco de Aprendizaje por Refuerzo (RL), donde un agente de IA aprende una política de despacho óptima a través de la experiencia.
+
+        Para entrenar a un agente de RL sin arriesgar vidas, es esencial construir primero un **"gemelo digital"** del sistema de SME, un entorno de simulación de alta fidelidad.
+        """)
+
+        with st.expander("Fundamento Matemático Detallado: Simulación de Eventos Discretos y RL", expanded=True):
+            st.markdown(r"""
+            **1. Metodología de Simulación: Teoría de Colas y SimPy**
+
+            El sistema de SME se puede modelar como un **sistema de colas M/G/c**.
+            - **M (Markoviano):** La llegada de llamadas sigue un **proceso de Poisson**, lo que significa que el tiempo entre llegadas consecutivas sigue una distribución exponencial.
+            - **G (General):** El tiempo de servicio (desde el despacho hasta que la ambulancia vuelve a estar disponible) sigue una distribución general, ya que depende de muchos factores (tráfico, gravedad del incidente, etc.).
+            - **c:** Hay $c$ servidores, que corresponde al número de ambulancias disponibles.
+
+            Utilizamos **SimPy**, una librería de **simulación de eventos discretos** basada en procesos. A diferencia de las simulaciones por pasos de tiempo fijos, este paradigma solo avanza el tiempo al siguiente evento programado (e.g., "llegada de una llamada", "ambulancia disponible"), lo que lo hace computacionalmente muy eficiente.
+
+            **2. Formulación Matemática del Aprendizaje por Refuerzo**
+
+            El problema de despacho se formaliza como un **Proceso de Decisión de Markov (MDP)**, definido por la tupla $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$:
+            - $\mathcal{S}$ (Espacio de Estados): Una representación del sistema en un momento $t$. Incluye la ubicación y estado (libre/ocupada) de cada ambulancia, la lista de llamadas en espera con sus prioridades y ubicaciones, y el pronóstico de demanda a corto plazo.
+            - $\mathcal{A}$ (Espacio de Acciones): El conjunto de decisiones que el agente puede tomar. Por ejemplo: `asignar(ambulancia_j, llamada_i)` o `reubicar(ambulancia_k, base_l)`.
+            - $P(s'|s,a)$: La función de probabilidad de transición de estado. Describe la probabilidad de llegar al estado $s'$ si se toma la acción $a$ en el estado $s$. En nuestro caso, esta función es el **simulador de SimPy**.
+            - $R(s,a,s')$: La función de recompensa. Una señal escalar que el agente recibe después de cada acción. Debe estar diseñada para incentivar el comportamiento deseado. Por ejemplo, una recompensa negativa proporcional al tiempo de respuesta: $R = -T_{\text{respuesta}}$.
+            - $\gamma \in [0, 1]$: Un factor de descuento que pondera la importancia de las recompensas futuras frente a las inmediatas.
+
+            El objetivo del agente de RL es aprender una **política óptima** $\pi^*: \mathcal{S} \to \mathcal{A}$ que maximice la recompensa acumulada esperada (el retorno) a largo plazo:
+            """)
+            st.latex(r''' \pi^* = \arg\max_{\pi} \mathbb{E} \left[ \sum_{t=0}^{\infty} \gamma^t R_{t+1} \mid \pi \right] ''')
+            st.markdown(r"""
+            **3. Justificación Científica y Relevancia Operacional**
+
+            - **Superación de las Heurísticas Simples:** Las políticas de despacho humanas a menudo se basan en heurísticas simples (e.g., "enviar siempre la unidad más cercana"). El RL permite al agente aprender **políticas complejas y no intuitivas**. Por ejemplo, podría aprender a no enviar la ambulancia más cercana a una llamada no crítica si esa ambulancia es la única que cubre una zona con alta probabilidad de una llamada cardíaca inminente, según el pronóstico de Prophet.
+            - **Adaptabilidad Dinámica:** Un agente de RL puede adaptarse a condiciones cambiantes. Si se produce un gran accidente de tráfico, el estado del sistema cambia drásticamente, y la política aprendida puede tomar decisiones que tengan en cuenta esta nueva realidad, algo que un plan de optimización estático no puede hacer.
+            """)
+
+        st.header("Demostración: Simulación de un Sistema con Prioridad")
+        num_ambulances = st.slider("Parámetro: Número de Ambulancias (Servidores, c)", 1, 10, 3, key="simpy_slider_1")
+        avg_call_interval = st.slider("Parámetro: Tiempo Promedio Entre Llamadas (1/λ)", 5, 60, 20, key="simpy_slider_2")
+        
+        @st.cache_data
+        def run_dispatch_simulation(ambulances, interval):
+            """Encapsulates the entire SimPy simulation for stability with Streamlit."""
+            import simpy
+            
+            wait_times_priority = []
+            wait_times_standard = []
+            
+            def call_process(env, fleet, is_priority):
+                arrival_time = env.now
+                priority_level = 1 if is_priority else 2 # Lower number is higher priority in SimPy
+                with fleet.request(priority=priority_level) as request:
+                    yield request
+                    wait_time = env.now - arrival_time
+                    if is_priority:
+                        wait_times_priority.append(wait_time)
+                    else:
+                        wait_times_standard.append(wait_time)
+                    
+                    service_time = random.uniform(20, 40) # Time to handle call and become free again
+                    yield env.timeout(service_time)
+
+            def call_generator(env, fleet, interval):
+                for _ in range(500): # Simulate 500 calls
+                    is_priority_call = random.random() < 0.2 # 20% of calls are high-priority
+                    env.process(call_process(env, fleet, is_priority_call))
+                    # Wait for the next call according to a Poisson process
+                    yield env.timeout(random.expovariate(1.0 / interval))
+            
+            env = simpy.Environment()
+            fleet = simpy.PriorityResource(env, capacity=ambulances)
+            env.process(call_generator(env, fleet, interval))
+            env.run()
+            
+            return np.mean(wait_times_priority) if wait_times_priority else 0, np.mean(wait_times_standard) if wait_times_standard else 0
+
+        if st.button("🔬 Ejecutar Simulación de Sistema de Colas con Prioridad"):
+            with st.spinner("Simulando cientos de eventos de despacho..."):
+                priority_wait, standard_wait = run_dispatch_simulation(num_ambulances, avg_call_interval)
+                st.subheader("Resultados de la Simulación")
+                col1, col2 = st.columns(2)
+                col1.metric("Tiempo de Espera Promedio (Llamadas Prioritarias)", f"{priority_wait:.2f} min")
+                col2.metric("Tiempo de Espera Promedio (Llamadas Estándar)", f"{standard_wait:.2f} min")
+
+                with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
+                    st.markdown("""
+                    **Análisis de la Simulación:**
+                    La simulación utiliza una **cola de prioridad**, un modelo más realista que un simple sistema "primero en llegar, primero en ser servido". Los resultados muestran que, incluso con recursos limitados, el sistema puede mantener un tiempo de espera muy bajo para las llamadas críticas, a costa de un tiempo de espera mayor para las no críticas. Este es el comportamiento deseado y valida que el simulador captura dinámicas de sistemas realistas.
+                    
+                    **Implicaciones para el Aprendizaje por Refuerzo:**
+                    Este entorno simulado es la pieza clave que permite la aplicación de algoritmos de RL. La función de recompensa del agente se diseñaría para minimizar una combinación ponderada de estos tiempos de espera:
+                    """)
+                    st.latex(r''' R = - (w_p \cdot \overline{T}_{\text{espera, prioridad}} + w_s \cdot \overline{T}_{\text{espera, estándar}}) ''')
+                    st.markdown("""
+                    donde $w_p \gg w_s$. Un agente de RL entrenado en esta simulación aprendería una política de despacho que va más allá de la simple prioridad. Podría aprender a **reservar estratégicamente una ambulancia** en una zona de alta probabilidad de llamadas prioritarias, rechazando temporalmente atender una llamada estándar en otro lugar, si su modelo interno predice que hacerlo maximizará la recompensa a largo plazo. Esta capacidad de tomar decisiones estratégicas y dependientes del contexto es lo que diferencia al RL de las políticas heurísticas fijas.
+                    """)
         with st.expander("Fundamento Matemático: Procesos de Decisión de Markov"):
             st.markdown("El problema se modela como un **MDP** $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$. El objetivo es encontrar la política óptima $\pi^*$ que maximice el retorno esperado:")
             st.latex(r''' \pi^* = \arg\max_{\pi} \mathbb{E} \left[ \sum_{t=0}^{\infty} \gamma^t R_{t+1} \mid \pi \right] ''')
