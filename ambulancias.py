@@ -6,7 +6,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import random  # For SimPy simulation
+import random
 from sklearn.cluster import KMeans
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -40,40 +40,32 @@ def render_sidebar_info():
     st.sidebar.info("Aplicación SME que demuestra los conceptos de la tesis y su evolución con IA de vanguardia.")
 
 # ==============================================================================
-# 2. APPLICATION STATE INITIALIZATION
+# 2. APPLICATION STATE AND DATA LOADING
 # ==============================================================================
 if 'k_clusters' not in st.session_state:
     st.session_state.k_clusters = 15
 if 'clusters_run' not in st.session_state:
     st.session_state.clusters_run = False
 
-# ==============================================================================
-# 3. DATA MODELS AND CACHED FUNCTIONS
-# ==============================================================================
 @st.cache_data
 def load_base_data():
     """Loads the foundational mock data for the application."""
     lat_min, lat_max = 32.40, 32.55; lon_min, lon_max = -117.12, -116.60
     num_llamadas = 500; np.random.seed(42)
     api_time = np.random.gamma(shape=4, scale=5, size=num_llamadas) + 5
-    real_time_factor = np.random.normal(0.8, 0.1, size=num_llamadas)
-    real_time = api_time * real_time_factor
-    correction_factor = np.random.normal(0, 2, size=num_llamadas)
-    corrected_time = real_time + correction_factor
-    
+    real_time = api_time * np.random.normal(0.8, 0.1, size=num_llamadas)
+    corrected_time = real_time + np.random.normal(0, 2, size=num_llamadas)
     df_llamadas = pd.DataFrame({
         'lat': np.random.uniform(lat_min, lat_max, num_llamadas),
         'lon': np.random.uniform(lon_min, lon_max, num_llamadas),
-        'tiempo_api_minutos': api_time,
-        'tiempo_real_minutos': real_time,
-        'tiempo_corregido_minutos': corrected_time
+        'tiempo_api_minutos': api_time, 'tiempo_real_minutos': real_time, 'tiempo_corregido_minutos': corrected_time
     })
     bases_actuales = pd.DataFrame({'nombre': ['Base Actual - Centro', 'Base Actual - La Mesa'], 'lat': [32.533, 32.515], 'lon': [-117.03, -116.98], 'tipo': ['Actual'] * 2})
     return df_llamadas, bases_actuales
 
 @st.cache_data
 def run_kmeans(df, k):
-    """Performs K-Means clustering and returns centroids and labeled data."""
+    """Performs K-Means clustering."""
     kmeans = KMeans(n_clusters=k, random_state=42, n_init='auto')
     df['cluster'] = kmeans.fit_predict(df[['lat', 'lon']])
     centroids = kmeans.cluster_centers_
@@ -99,20 +91,16 @@ class ThesisSummaryPage(AbstractPage):
         st.markdown("Esta aplicación presenta los hallazgos fundamentales de la investigación doctoral sobre la optimización de Servicios Médicos de Emergencia (SME) en Tijuana, México.")
         with st.expander("Planteamiento del Problema y Justificación Científica", expanded=True):
             st.markdown(r"""
-            El problema central es la optimización de un sistema estocástico y dinámico con recursos limitados. La eficacia de los SME se mide principalmente por el **tiempo de respuesta**, una variable crítica que impacta directamente en la morbilidad y mortalidad de los pacientes. En entornos urbanos complejos como Tijuana, las estimaciones de tiempo de viaje de las API comerciales son sistemáticamente incorrectas, lo que invalida los modelos de optimización estándar.
-
+            El despliegue eficiente de Servicios Médicos de Emergencia (SME) es un problema crítico de asignación de recursos bajo incertidumbre. La métrica de rendimiento primaria, el **tiempo de respuesta**, está directamente correlacionada con los resultados clínicos de los pacientes, especialmente en casos de trauma y paros cardíacos. Los modelos de optimización matemática clásicos, como los problemas de localización de instalaciones, ofrecen un marco teórico para posicionar los recursos (ambulancias), pero su validez depende críticamente de la precisión de sus parámetros de entrada.
+            
+            En entornos urbanos complejos y con recursos limitados como Tijuana, los parámetros de tiempo de viaje ($t_{ij}$) proporcionados por las API de enrutamiento comerciales (e.g., Google Maps, OSRM) exhiben un **sesgo sistemático**. Estas APIs calculan rutas para vehículos civiles, sin tener en cuenta las condiciones operacionales de un vehículo de emergencia (uso de sirenas, exenciones de tráfico). Un modelo de optimización alimentado con estos datos sesgados producirá, por definición, una solución subóptima.
+            
             Esta investigación aborda esta brecha fundamental mediante la **integración sinérgica de dos campos matemáticos**:
-            1.  **Investigación de Operaciones:** Para la formulación del problema de localización-asignación.
-            2.  **Aprendizaje Automático:** Para la calibración empírica de los parámetros del modelo a partir de datos históricos, específicamente el tiempo de viaje.
+            1.  **Investigación de Operaciones:** Se utiliza para formular el problema de localización-asignación a través de un **Programa Lineal Entero Binario**, específicamente el Modelo Robusto de Doble Estándar (RDSM).
+            2.  **Aprendizaje Automático (Estadística Computacional):** Se emplea para construir un modelo predictivo que calibra los parámetros de tiempo de viaje, transformando los datos brutos de la API en estimaciones realistas y estadísticamente insesgadas.
+            
+            La hipótesis central es que la calibración de los parámetros del modelo de optimización a través de un modelo de ML empíricamente validado conducirá a una mejora significativa y medible en la eficacia del sistema de despacho.
             """)
-        st.header("Contribuciones Científicas Principales")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("1. Modelo Híbrido de Corrección de Tiempos")
-            st.markdown("La contribución metodológica principal es un **modelo de aprendizaje supervisado (Random Forest)** que no predice el tiempo directamente, sino que clasifica el *tipo de error* de la API. Este enfoque de clasificación transforma un problema de regresión ruidoso en una tarea de clasificación más robusta, demostrando una **mejora del 20% en la cobertura** del sistema de optimización resultante.")
-        with col2:
-            st.subheader("2. Marco de Solución Sostenible")
-            st.markdown("La investigación valida el uso de **herramientas de código abierto (OSRM)**, demostrando que es posible construir sistemas de optimización de alto rendimiento sin depender de costosas API comerciales.")
 
 class TimeCorrectionPage(AbstractPage):
     def render(self) -> None:
@@ -120,10 +108,17 @@ class TimeCorrectionPage(AbstractPage):
         st.markdown("La contribución central de la tesis es la calibración de los tiempos de viaje. Un modelo de ML aprende la discrepancia sistemática entre las estimaciones de la API y la realidad operacional.")
         with st.expander("Metodología y Fundamento Matemático", expanded=True):
              st.markdown(r"""
-            El problema de predecir el error de tiempo de viaje $\epsilon = T_{\text{API}} - T_{\text{real}}$ se transforma de una regresión a una **clasificación**. Este es un paso crucial para la robustez.
-            1.  **Discretización:** El espacio de error continuo se discretiza en clases categóricas.
-            2.  **Clasificación:** Un modelo **Random Forest** aprende a predecir la clase de error $f(X) = \hat{c}$.
-            3.  **Corrección:** Se aplica una corrección basada en la mediana del error de la clase predicha: $T_{\text{corregido}} = T_{\text{API}} - \Delta_{\hat{c}}$.
+            **Formulación del Problema:** Dado un tiempo de viaje real $T_{\text{real}}$ y una estimación de API $T_{\text{API}}$, el error se define como $\epsilon = T_{\text{API}} - T_{\text{real}}$. El objetivo es construir un modelo que prediga una corrección $\Delta$ tal que $T_{\text{API}} - \Delta \approx T_{\text{real}}$.
+            
+            **Decisión Metodológica Clave: Clasificación sobre Regresión**
+            En lugar de predecir el valor continuo de $\epsilon$ (un problema de regresión), el problema se transforma en uno de **clasificación**. El espacio de error continuo se discretiza en $k$ clases categóricas $C = \{c_1, \dots, c_k\}$. Por ejemplo:
+            - $c_1$: Gran sobreestimación ($\epsilon > \tau_1$)
+            - $c_2$: Sobreestimación moderada ($\tau_2 < \epsilon \le \tau_1$)
+            - $c_3$: Subestimación o error pequeño ($\epsilon \le \tau_2$)
+            
+            **Modelo y Justificación Científica:** Se entrena un clasificador no lineal, **Random Forest**, para aprender la función $f: \mathcal{X} \to C$, donde $\mathcal{X}$ es el espacio de características del viaje (hora, día, ubicación, etc.). Un Random Forest es un ensamblaje de árboles de decisión que mitiga el sobreajuste y captura interacciones complejas. La elección de la clasificación es deliberada: es más robusta a los valores atípicos (viajes extremadamente rápidos/lentos) que son comunes en los datos de emergencia y que desestabilizarían un modelo de regresión.
+            
+            **Aplicación de la Corrección:** Para una nueva predicción de clase $\hat{c} = f(X)$, se aplica una corrección $\Delta_{\hat{c}}$ calculada como la **mediana** del error de todos los puntos de entrenamiento en esa clase. La mediana es un estimador robusto de la tendencia central, insensible a los valores atípicos dentro de la clase.
             """)
         df_llamadas, _ = load_base_data()
         error_antes = df_llamadas['tiempo_api_minutos'] - df_llamadas['tiempo_real_minutos']
@@ -131,18 +126,14 @@ class TimeCorrectionPage(AbstractPage):
         st.header("Resultados de la Calibración del Modelo")
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("Distribución del Error (Antes de la Corrección)")
-            fig1 = px.histogram(error_antes, nbins=50, title="Error de la API (API - Real)")
-            fig1.update_layout(xaxis_title="Error de Tiempo (minutos)", yaxis_title="Frecuencia")
-            st.plotly_chart(fig1, use_container_width=True)
+            st.subheader("Distribución del Error (Antes)")
+            st.plotly_chart(px.histogram(error_antes, title="Error de la API (API - Real)"), use_container_width=True)
         with col2:
-            st.subheader("Distribución del Error (Después de la Corrección)")
-            fig2 = px.histogram(error_despues, nbins=50, title="Error del Modelo Corregido (Corregido - Real)")
-            fig2.update_layout(xaxis_title="Error de Tiempo (minutos)", yaxis_title="Frecuencia")
-            st.plotly_chart(fig2, use_container_width=True)
+            st.subheader("Distribución del Error (Después)")
+            st.plotly_chart(px.histogram(error_despues, title="Error del Modelo Corregido"), use_container_width=True)
         with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
             st.markdown("""
-            - **Gráfico de la Izquierda (Antes):** La distribución del error de la API está **sesgada a la derecha**, con una media significativamente mayor que cero. Estadísticamente, esto demuestra que la API es un **estimador sesgado**.
+            - **Gráfico de la Izquierda (Antes):** La distribución del error de la API es **sesgada a la derecha**, con una media significativamente mayor que cero. Estadísticamente, esto demuestra que la API es un **estimador sesgado**.
             - **Gráfico de la Derecha (Después):** El modelo de corrección transforma la distribución. Ahora es **aproximadamente simétrica y centrada en cero**, convirtiéndolo en un **estimador insesgado**.
             **Implicación:** La calibración del modelo convierte un parámetro de entrada inutilizable en uno científicamente válido.
             """)
@@ -297,7 +288,7 @@ class AIEvolutionPage(AbstractPage):
         
         @st.cache_data
         def run_dispatch_simulation(ambulances, interval):
-            import simpy # Import simpy inside the function
+            import simpy
             wait_times_priority = []; wait_times_standard = []
             
             def call_process(env, fleet, is_priority):
