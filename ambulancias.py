@@ -142,13 +142,41 @@ class ClusteringPage(AbstractPage):
     def render(self) -> None:
         super().render()
         st.markdown("El primer paso computacional es agregar las ubicaciones de miles de llamadas históricas en un conjunto manejable de 'puntos de demanda' mediante K-Means.")
-        with st.expander("Metodología y Fundamento Matemático: K-Means"):
+with st.expander("Metodología y Fundamento Matemático: K-Means", expanded=True):
             st.markdown(r"""
-            **Problema:** Particionar un conjunto de $n$ vectores de observación de llamadas $\{x_1, \dots, x_n\}$ en $k$ clústeres $S = \{S_1, \dots, S_k\}$.
-            **Objetivo:** Minimizar la inercia, o la Suma de Cuadrados Intra-clúster (WCSS):
+            **1. Formulación del Problema**
+
+            El problema de la agregación de la demanda consiste en transformar un conjunto de datos de alta cardinalidad, compuesto por $n$ ubicaciones geográficas de llamadas de emergencia $\{x_1, x_2, \dots, x_n\}$ donde cada $x_i \in \mathbb{R}^2$, en un conjunto representativo de $k$ "puntos de demanda" prototípicos, donde $k \ll n$. Este es un problema canónico de **aprendizaje no supervisado**, específicamente de **clustering por partición**.
+
+            ---
+            **2. Metodología: El Algoritmo K-Means**
+
+            Se emplea el algoritmo K-Means, un método iterativo de optimización cuyo objetivo es particionar las $n$ observaciones en $k$ conjuntos o clústeres disjuntos, $S = \{S_1, S_2, \dots, S_k\}$, de tal manera que se minimice la inercia, comúnmente conocida como la **Suma de Cuadrados Intra-clúster** (Within-Cluster Sum of Squares, WCSS).
+
+            La **función objetivo** que K-Means busca minimizar es:
             """)
-            st.latex(r''' \arg\min_{S} \sum_{i=1}^{k} \sum_{x \in S_i} \|x - \mu_i\|^2 ''')
-        k_input = st.slider("Parámetro (k): Número de Puntos de Demanda", 2, 25, st.session_state.k_clusters, key="k_slider")
+            st.latex(r''' J(S, \mu) = \sum_{i=1}^{k} \sum_{x_j \in S_i} \|x_j - \mu_i\|^2 ''')
+            st.markdown(r"""
+            Donde:
+            - $\|x_j - \mu_i\|^2$ es la distancia Euclidiana al cuadrado entre un punto de datos $x_j$ y el centroide $\mu_i$ de su clúster asignado $S_i$.
+            - $\mu_i$ es el centroide del clúster $i$, calculado como la media vectorial de todos los puntos en ese clúster: $\mu_i = \frac{1}{|S_i|} \sum_{x_j \in S_i} x_j$.
+
+            El algoritmo converge a un mínimo local de esta función objetivo a través de un procedimiento iterativo de dos pasos (Expectation-Maximization):
+            1.  **Paso de Asignación (E-step):** Cada punto de datos $x_j$ se asigna al clúster cuyo centroide $\mu_i$ está más cercano: $S_i^{(t)} = \{x_j : \|x_j - \mu_i^{(t-1)}\|^2 \le \|x_j - \mu_{i'}^{(t-1)}\|^2 \quad \forall i'=1,\dots,k \}$.
+            2.  **Paso de Actualización (M-step):** Los centroides se recalculan como la media de los puntos asignados a cada clúster en el paso anterior: $\mu_i^{(t)} = \frac{1}{|S_i^{(t)}|} \sum_{x_j \in S_i^{(t)}} x_j$.
+
+            Estos pasos se repiten hasta que las asignaciones de los clústeres ya no cambian, indicando la convergencia.
+
+            ---
+            **3. Justificación Científica y Relevancia Operacional**
+
+            La elección de K-Means para este problema geoespacial se justifica por varias razones:
+            - **Interpretabilidad:** El centroide $\mu_i$ tiene una interpretación física directa y poderosa: es el **centro de masa** o el "centro de gravedad" de la demanda de emergencias en la región $i$. Esto lo convierte en un candidato natural para un punto de demanda en el modelo de optimización posterior.
+            - **Eficiencia Computacional:** El algoritmo es computacionalmente eficiente y escala bien a grandes volúmenes de datos de llamadas, lo cual es esencial para un sistema operacional.
+            - **Suposición de Geometría Euclidiana:** El algoritmo asume que los clústeres son de forma convexa e isotrópica (aproximadamente esféricos). En el contexto de la agregación de demanda a nivel de ciudad, donde las zonas de alta demanda a menudo son áreas geográficas compactas (barrios, distritos comerciales), esta suposición es razonable y efectiva como una primera aproximación.
+
+            **Limitaciones:** Es importante reconocer que K-Means puede tener dificultades con clústeres de diferentes densidades o formas no convexas (e.g., demanda a lo largo de una carretera). Para análisis más finos, se podrían considerar métodos más avanzados como DBSCAN o UMAP (explorados en la pestaña de "Evolución con IA"). Sin embargo, para el propósito de la tesis de definir puntos de demanda a nivel macro, K-Means proporciona una solución robusta, interpretable y computacionalmente viable.
+            """)
         if k_input != st.session_state.k_clusters:
             st.session_state.k_clusters = k_input
             st.session_state.clusters_run = False
