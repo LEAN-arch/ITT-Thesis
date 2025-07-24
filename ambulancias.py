@@ -1,4 +1,9 @@
 # app.py
+# ==============================================================================
+# LIBRARIES
+# Import lightweight libraries at the top for fast startup.
+# Heavy libraries are imported "just-in-time" inside their respective functions.
+# ==============================================================================
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -10,12 +15,32 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from abc import ABC, abstractmethod
 
-# Import reusable UI components from the separate file
-# Ensure you have the components.py file in the same directory
-import components
+# ==============================================================================
+# 1. UI COMPONENTS & HELPER FUNCTIONS
+# (Previously in components.py, now integrated for a single-file solution)
+# ==============================================================================
+def render_mathematical_foundations():
+    """Renders a sidebar expander with mathematical context."""
+    with st.sidebar.expander("🎓 Fundamento Matemático General"):
+        st.markdown(r"""
+        El problema central de esta tesis es un **Problema de Localización-Asignación** (*Location-Allocation*), formulado como un **Problema de Cobertura** (*Covering Problem*) dentro de la **Investigación de Operaciones**.
+
+        Se busca optimizar la ubicación de $P$ ambulancias para maximizar la cobertura de $I$ puntos de demanda. La principal innovación es la **calibración de los parámetros** del modelo (tiempos de viaje $t_{ij}$) mediante **Aprendizaje Automático**.
+        """)
+
+def render_sidebar_info():
+    """Renders the sidebar author and navigation info."""
+    st.sidebar.title("🚑 Navegación")
+    st.sidebar.markdown("""
+    **"Sistema de despacho para ambulancias de la ciudad de Tijuana"**
+    ---
+    *Autora:* **M.C. Noelia Araceli Torres Cortés**
+    *Institución:* **Tecnológico Nacional de México / ITT**
+    """)
+    st.sidebar.info("Esta es una aplicación de grado comercial que demuestra los conceptos de la tesis y su evolución con IA de vanguardia.")
 
 # ==============================================================================
-# 1. APPLICATION STATE INITIALIZATION
+# 2. APPLICATION STATE INITIALIZATION
 # ==============================================================================
 if 'k_clusters' not in st.session_state:
     st.session_state.k_clusters = 15
@@ -23,7 +48,7 @@ if 'clusters_run' not in st.session_state:
     st.session_state.clusters_run = False
 
 # ==============================================================================
-# 2. DATA MODELS AND CACHED FUNCTIONS
+# 3. DATA MODELS AND CACHED FUNCTIONS
 # ==============================================================================
 @st.cache_data
 def load_base_data():
@@ -53,7 +78,7 @@ def run_kmeans(df, k):
     return df, df_centroids
 
 # ==============================================================================
-# 3. PAGE ABSTRACTION (OBJECT-ORIENTED DESIGN)
+# 4. PAGE ABSTRACTION (OBJECT-ORIENTED DESIGN)
 # ==============================================================================
 class AbstractPage(ABC):
     """An abstract class for all pages in the Streamlit app."""
@@ -295,7 +320,7 @@ class AIEvolutionPage(AbstractPage):
                     
                     El agente aprendería una política de despacho no-lineal y compleja que supera las heurísticas simples (como "enviar la más cercana"), ya que puede prever el impacto a largo plazo de sus acciones en el estado futuro del sistema.
                     """)
-
+                    
     def render_gnn_tab(self):
         st.header("Metodología Propuesta: Análisis Geoespacial con Redes Neuronales Gráficas (GNN)")
         st.markdown("Proponemos modelar la red de calles de Tijuana como un grafo y aplicar GNNs (**PyTorch Geometric**) para aprender representaciones (embeddings) de las intersecciones. El clustering sobre estos embeddings puede revelar 'comunidades viales' que no son evidentes con clustering Euclidiano.")
@@ -331,7 +356,7 @@ class AIEvolutionPage(AbstractPage):
                     """)
 
 # ==============================================================================
-# 4. MAIN APPLICATION ROUTER
+# 5. MAIN APPLICATION ROUTER
 # ==============================================================================
 def main():
     """Main function to route to the correct page."""
