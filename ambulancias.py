@@ -326,17 +326,22 @@ class AIEvolutionPage(AbstractPage):
             **Justificación Científica:** LightGBM representa el estado del arte para datos tabulares. Se incluye para establecer un **límite superior de rendimiento práctico**. Su capacidad para manejar un gran número de características, su eficiencia (utiliza histogramas para encontrar los mejores splits) y su inclusión de regularización lo convierten en un candidato extremadamente fuerte para un modelo de producción final. Su rendimiento en comparación con el Random Forest de la tesis es una medida clave del potencial de mejora.
             """)
         if st.button("▶️ Entrenar y Comparar Clasificadores"):
-            with st.spinner("Entrenando 5 modelos distintos..."):
-                import lightgbm as lgb
+            with st.spinner("Entrenando 5 modelos distintos... (puede requerir instalar lightgbm)"):
+                try:
+                    import lightgbm as lgb
+                except ImportError:
+                    st.error("Por favor instale LightGBM: pip install lightgbm")
+                    return
+                    
                 X, y = make_classification(n_samples=2000, n_features=15, n_informative=8, n_classes=3, random_state=42)
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-                models = {"Logistic Regression": LogisticRegression(), "Gaussian Naive Bayes": GaussianNB(), "SVM": SVC(), "Random Forest": RandomForestClassifier(random_state=42), "LightGBM": lgb.LGBMClassifier(random_state=42)}
+                models = {"Logistic Regression": LogisticRegression(), "Gaussian Naive Bayes": GaussianNB(), "SVM": SVC(), "Random Forest": RandomForestClassifier(random_state=42), "LightGBM": lgb.LGBMClassifier(random_state=42, verbosity=-1)}
                 results = {name: accuracy_score(y_test, model.fit(X_train, y_train).predict(X_test)) for name, model in models.items()}
                 df_results = pd.DataFrame.from_dict(results, orient='index', columns=['Accuracy']).sort_values('Accuracy', ascending=False).reset_index()
-                fig = px.bar(df_results, x='index', y='Accuracy', title='Comparación de Precisión de Clasificadores', text_auto='.3%')
+                df_results.rename(columns={'index':'Modelo'}, inplace=True)
+                fig = px.bar(df_results, x='Modelo', y='Accuracy', title='Comparación de Precisión de Clasificadores', text_auto='.3%')
                 st.plotly_chart(fig, use_container_width=True)
 
-    def render_umap_tab(self):
     def render_umap_tab(self):
         st.header("Metodología Propuesta: Reducción de Dimensionalidad Topológica con UMAP")
         st.markdown("""
@@ -377,9 +382,13 @@ class AIEvolutionPage(AbstractPage):
             """)
 
         if st.button("📊 Ejecutar Comparación de Métodos de Clustering"):
-            with st.spinner("Generando embeddings con UMAP, agrupando y comparando con K-Means..."):
-                import umap
-                from sklearn.cluster import HDBSCAN
+            with st.spinner("Generando embeddings con UMAP, agrupando y comparando... (puede requerir instalar umap-learn y hdbscan)"):
+                try:
+                    import umap
+                    import hdbscan
+                except ImportError:
+                    st.error("Por favor instale las librerías requeridas: pip install umap-learn hdbscan")
+                    return
                 
                 df_calls, _ = load_base_data()
                 data_points = df_calls[['lat', 'lon']].values
@@ -391,9 +400,11 @@ class AIEvolutionPage(AbstractPage):
                 # Proposed: UMAP + HDBSCAN
                 reducer = umap.UMAP(n_neighbors=20, min_dist=0.0, n_components=2, random_state=42)
                 embedding = reducer.fit_transform(data_points)
-                hdbscan_labels = HDBSCAN(min_cluster_size=20).fit_predict(embedding)
+                clusterer = hdbscan.HDBSCAN(min_cluster_size=20)
+                hdbscan_labels = clusterer.fit_predict(embedding)
                 df_calls['UMAP_Cluster'] = hdbscan_labels
                 
+                st.subheader("Resultados de la Comparación de Clustering")
                 col1, col2 = st.columns(2)
                 with col1:
                     fig1 = px.scatter_mapbox(df_calls, lat="lat", lon="lon", color=df_calls['KMeans_Cluster'].astype(str),
@@ -412,33 +423,10 @@ class AIEvolutionPage(AbstractPage):
                     st.markdown("""
                     **Análisis Comparativo:**
                     - **K-Means (Izquierda):** Como se esperaba, el algoritmo impone una estructura geométrica, dividiendo el espacio en regiones convexas (voronoi). Todos los puntos son forzados a pertenecer a un clúster, independientemente de si son atípicos.
-                    - **UMAP + HDBSCAN (Derecha):** Este método produce un resultado cualitativamente diferente y más revelador. Es capaz de identificar clústeres de formas más orgánicas y no convexas, que pueden reflejar mejor la geografía real de la demanda (por ejemplo, a lo largo de una carretera principal). Crucialmente, identifica puntos como **ruido** (en gris, clúster -1), que son llamadas aisladas que no pertenecen a ninguna zona de alta densidad.
+                    - **UMAP + HDBSCAN (Derecha):** Este método produce un resultado cualitativamente diferente y más revelador. Es capaz de identificar clústeres de formas más orgánicas y no convexas, que pueden reflejar mejor la geografía real de la demanda (e.g., a lo largo de una carretera principal). Crucialmente, identifica puntos como **ruido** (en gris, clúster -1), que son llamadas aisladas que no pertenecen a ninguna zona de alta densidad.
 
                     **Implicación Científica y Operacional:**
                     La capacidad de UMAP para respetar la topología de los datos y la habilidad de HDBSCAN para manejar la densidad y el ruido proporcionan una segmentación de la demanda mucho más realista y matizada. Para la planificación de SME, esto es invaluable. Permite distinguir entre **zonas de demanda predecibles y consistentes** (los clústeres de colores), que requieren la asignación de recursos permanentes, y la **demanda estocástica y dispersa** (el ruido), que podría ser manejada por unidades de reserva o políticas de despacho diferentes. Esto conduce a una definición de "puntos de demanda" que no solo es más precisa, sino también más rica en información operacional.
-                    """)
-        if st.button("📊 Ejecutar K-Means vs. UMAP + HDBSCAN"):
-            with st.spinner("Generando embeddings y agrupando..."):
-                import umap
-                from sklearn.cluster import HDBSCAN
-                df_calls, _ = load_base_data()
-                data_points = df_calls[['lat', 'lon']].values
-                kmeans_labels = KMeans(n_clusters=4, random_state=42, n_init='auto').fit_predict(data_points)
-                df_calls['KMeans_Cluster'] = kmeans_labels
-                embedding = umap.UMAP(n_neighbors=20, min_dist=0.0, n_components=2, random_state=42).fit_transform(data_points)
-                hdbscan_labels = HDBSCAN(min_cluster_size=20).fit_predict(embedding)
-                df_calls['UMAP_Cluster'] = hdbscan_labels
-                col1, col2 = st.columns(2)
-                with col1:
-                    fig1 = px.scatter_mapbox(df_calls, lat="lat", lon="lon", color=df_calls['KMeans_Cluster'].astype(str), title="Clusters Geoespaciales (K-Means)", mapbox_style="carto-positron", category_orders={"color": sorted(df_calls['KMeans_Cluster'].astype(str).unique())})
-                    st.plotly_chart(fig1, use_container_width=True)
-                with col2:
-                    fig2 = px.scatter_mapbox(df_calls, lat="lat", lon="lon", color=df_calls['UMAP_Cluster'].astype(str), title="Clusters Geoespaciales (UMAP+HDBSCAN)", mapbox_style="carto-positron", category_orders={"color": sorted(df_calls['UMAP_Cluster'].astype(str).unique())})
-                    st.plotly_chart(fig2, use_container_width=True)
-                with st.expander("Análisis de Resultados e Implicaciones"):
-                    st.markdown("""
-                    **Comparación:** El mapa de K-Means divide el espacio en regiones geométricas convexas. El mapa de UMAP+HDBSCAN encuentra clústeres basados en la densidad y la conectividad, identificando grupos de formas más arbitrarias y separando el ruido (puntos grises, cluster -1).
-                    **Implicación Científica:** UMAP proporciona una representación más fiel de la **estructura de la demanda real**, lo que conduce a una definición de "puntos de demanda" más precisa.
                     """)
 
     def render_prophet_tab(self):
@@ -482,8 +470,12 @@ class AIEvolutionPage(AbstractPage):
         
         days_to_forecast = st.slider("Parámetro: Horizonte de Pronóstico (días)", 7, 90, 30, key="prophet_slider")
         if st.button("📈 Generar Pronóstico de Demanda"):
-            with st.spinner("Calculando pronóstico de series de tiempo... (La primera ejecución puede ser lenta)"):
-                from prophet import Prophet
+            with st.spinner("Calculando pronóstico de series de tiempo... (puede requerir instalar prophet)"):
+                try:
+                    from prophet import Prophet
+                except ImportError:
+                    st.error("Por favor instale Prophet: pip install prophet")
+                    return
                 
                 # Generar datos sintéticos con estacionalidades claras
                 df = pd.DataFrame({'ds': pd.date_range("2022-01-01", periods=365)})
@@ -513,25 +505,6 @@ class AIEvolutionPage(AbstractPage):
                 **Implicación Científica y Operacional:**
                 Este enfoque permite una transición fundamental de una **optimización reactiva** (basada en promedios históricos) a una **optimización proactiva y anticipatoria**. En lugar de planificar para el "martes promedio", el sistema puede planificar para el "próximo martes", incorporando tendencias recientes y estacionalidades. Operacionalmente, esto significa que las ambulancias pueden ser reubicadas a zonas de alta demanda *pronosticada* horas antes de que ocurran los picos de llamadas, reduciendo así de manera fundamental los tiempos de respuesta.
                 """)
-        with st.expander("Fundamento Matemático: Prophet"):
-            st.markdown(r"Prophet modela una serie de tiempo como una suma de componentes:")
-            st.latex(r''' y(t) = g(t) + s(t) + h(t) + \epsilon_t ''')
-            st.markdown(r"Donde $g(t)$ es la tendencia, $s(t)$ la estacionalidad (series de Fourier), $h(t)$ los feriados, y $\epsilon_t$ el error.")
-        days_to_forecast = st.slider("Parámetro: Horizonte de Pronóstico (días)", 7, 90, 30, key="prophet_slider")
-        if st.button("📈 Generar Pronóstico"):
-            with st.spinner("Calculando..."):
-                from prophet import Prophet
-                df = pd.DataFrame({'ds': pd.date_range("2022-01-01", periods=365)})
-                df['y'] = 50 + (df['ds'].dt.dayofweek // 5) * 20 + np.sin(df.index / 365 * 4 * np.pi) * 10
-                model = Prophet(weekly_seasonality=True, yearly_seasonality=True).fit(df)
-                forecast = model.predict(model.make_future_dataframe(periods=days_to_forecast))
-                historical_avg = df[df['ds'].dt.dayofweek == forecast.iloc[-1]['ds'].dayofweek]['y'].mean()
-                predicted_val = forecast.iloc[-1]['yhat']
-                st.pyplot(model.plot(forecast))
-                st.subheader("Análisis de Resultados e Implicaciones")
-                col1, col2 = st.columns(2)
-                col1.metric(f"Promedio Histórico para este Día", f"{historical_avg:.1f} llamadas")
-                col2.metric(f"Pronóstico para este Día", f"{predicted_val:.1f} llamadas", delta=f"{predicted_val - historical_avg:.1f}")
 
     def render_simpy_tab(self):
         st.header("Metodología Propuesta: Simulación de Sistemas y Aprendizaje por Refuerzo (RL)")
@@ -578,7 +551,10 @@ class AIEvolutionPage(AbstractPage):
         @st.cache_data
         def run_dispatch_simulation(ambulances, interval):
             """Encapsulates the entire SimPy simulation for stability with Streamlit."""
-            import simpy
+            try:
+                import simpy
+            except ImportError:
+                return "SimPy no instalado", "SimPy no instalado"
             
             wait_times_priority = []
             wait_times_standard = []
@@ -612,64 +588,29 @@ class AIEvolutionPage(AbstractPage):
             return np.mean(wait_times_priority) if wait_times_priority else 0, np.mean(wait_times_standard) if wait_times_standard else 0
 
         if st.button("🔬 Ejecutar Simulación de Sistema de Colas con Prioridad"):
-            with st.spinner("Simulando cientos de eventos de despacho..."):
+            with st.spinner("Simulando cientos de eventos de despacho... (puede requerir instalar simpy)"):
                 priority_wait, standard_wait = run_dispatch_simulation(num_ambulances, avg_call_interval)
-                st.subheader("Resultados de la Simulación")
-                col1, col2 = st.columns(2)
-                col1.metric("Tiempo de Espera Promedio (Llamadas Prioritarias)", f"{priority_wait:.2f} min")
-                col2.metric("Tiempo de Espera Promedio (Llamadas Estándar)", f"{standard_wait:.2f} min")
+                
+                if isinstance(priority_wait, str):
+                    st.error("Por favor instale SimPy: pip install simpy")
+                else:
+                    st.subheader("Resultados de la Simulación")
+                    col1, col2 = st.columns(2)
+                    col1.metric("Tiempo de Espera Promedio (Llamadas Prioritarias)", f"{priority_wait:.2f} min")
+                    col2.metric("Tiempo de Espera Promedio (Llamadas Estándar)", f"{standard_wait:.2f} min")
 
-                with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
-                    st.markdown("""
-                    **Análisis de la Simulación:**
-                    La simulación utiliza una **cola de prioridad**, un modelo más realista que un simple sistema "primero en llegar, primero en ser servido". Los resultados muestran que, incluso con recursos limitados, el sistema puede mantener un tiempo de espera muy bajo para las llamadas críticas, a costa de un tiempo de espera mayor para las no críticas. Este es el comportamiento deseado y valida que el simulador captura dinámicas de sistemas realistas.
-                    
-                    **Implicaciones para el Aprendizaje por Refuerzo:**
-                    Este entorno simulado es la pieza clave que permite la aplicación de algoritmos de RL. La función de recompensa del agente se diseñaría para minimizar una combinación ponderada de estos tiempos de espera:
-                    """)
-                    st.latex(r''' R = - (w_p \cdot \overline{T}_{\text{espera, prioridad}} + w_s \cdot \overline{T}_{\text{espera, estándar}}) ''')
-                    st.markdown("""
-                    donde $w_p \gg w_s$. Un agente de RL entrenado en esta simulación aprendería una política de despacho que va más allá de la simple prioridad. Podría aprender a **reservar estratégicamente una ambulancia** en una zona de alta probabilidad de llamadas prioritarias, rechazando temporalmente atender una llamada estándar en otro lugar, si su modelo interno predice que hacerlo maximizará la recompensa a largo plazo. Esta capacidad de tomar decisiones estratégicas y dependientes del contexto es lo que diferencia al RL de las políticas heurísticas fijas.
-                    """)
-        with st.expander("Fundamento Matemático: Procesos de Decisión de Markov"):
-            st.markdown("El problema se modela como un **MDP** $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$. El objetivo es encontrar la política óptima $\pi^*$ que maximice el retorno esperado:")
-            st.latex(r''' \pi^* = \arg\max_{\pi} \mathbb{E} \left[ \sum_{t=0}^{\infty} \gamma^t R_{t+1} \mid \pi \right] ''')
-        num_ambulances = st.slider("Parámetro: Número de Ambulancias", 1, 10, 3, key="simpy_slider_1")
-        avg_call_interval = st.slider("Parámetro: Tiempo Promedio Entre Llamadas (min)", 5, 60, 20, key="simpy_slider_2")
-        
-        @st.cache_data
-        def run_dispatch_simulation(ambulances, interval):
-            import simpy
-            wait_times_priority = []; wait_times_standard = []
-            
-            def call_process(env, fleet, is_priority):
-                arrival_time = env.now
-                with fleet.request(priority=(1 if is_priority else 2)) as request:
-                    yield request
-                    wait_time = env.now - arrival_time
-                    if is_priority: wait_times_priority.append(wait_time)
-                    else: wait_times_standard.append(wait_time)
-                    yield env.timeout(random.uniform(20, 40))
-
-            def call_generator(env, fleet, interval):
-                for _ in range(500):
-                    is_priority_call = random.random() < 0.2
-                    env.process(call_process(env, fleet, is_priority_call))
-                    yield env.timeout(random.expovariate(1.0 / interval))
-            
-            env = simpy.Environment()
-            fleet = simpy.PriorityResource(env, capacity=ambulances)
-            env.process(call_generator(env, fleet, interval))
-            env.run()
-            return np.mean(wait_times_priority) if wait_times_priority else 0, np.mean(wait_times_standard) if wait_times_standard else 0
-
-        if st.button("🔬 Ejecutar Simulación con Prioridad"):
-            with st.spinner("Simulando..."):
-                priority_wait, standard_wait = run_dispatch_simulation(num_ambulances, avg_call_interval)
-                st.subheader("Resultados de la Simulación")
-                col1, col2 = st.columns(2)
-                col1.metric("Espera Promedio (Prioritarias)", f"{priority_wait:.2f} min")
-                col2.metric("Espera Promedio (Estándar)", f"{standard_wait:.2f} min")
+                    with st.expander("Análisis de Resultados e Implicaciones Científicas", expanded=True):
+                        st.markdown("""
+                        **Análisis de la Simulación:**
+                        La simulación utiliza una **cola de prioridad**, un modelo más realista que un simple sistema "primero en llegar, primero en ser servido". Los resultados muestran que, incluso con recursos limitados, el sistema puede mantener un tiempo de espera muy bajo para las llamadas críticas, a costa de un tiempo de espera mayor para las no críticas. Este es el comportamiento deseado y valida que el simulador captura dinámicas de sistemas realistas.
+                        
+                        **Implicaciones para el Aprendizaje por Refuerzo:**
+                        Este entorno simulado es la pieza clave que permite la aplicación de algoritmos de RL. La función de recompensa del agente se diseñaría para minimizar una combinación ponderada de estos tiempos de espera:
+                        """)
+                        st.latex(r''' R = - (w_p \cdot \overline{T}_{\text{espera, prioridad}} + w_s \cdot \overline{T}_{\text{espera, estándar}}) ''')
+                        st.markdown("""
+                        donde $w_p \gg w_s$. Un agente de RL entrenado en esta simulación aprendería una política de despacho que va más allá de la simple prioridad. Podría aprender a **reservar estratégicamente una ambulancia** en una zona de alta probabilidad de llamadas prioritarias, rechazando temporalmente atender una llamada estándar en otro lugar, si su modelo interno predice que hacerlo maximizará la recompensa a largo plazo. Esta capacidad de tomar decisiones estratégicas y dependientes del contexto es lo que diferencia al RL de las políticas heurísticas fijas.
+                        """)
 
 # ==============================================================================
 # 5. MAIN APPLICATION ROUTER
