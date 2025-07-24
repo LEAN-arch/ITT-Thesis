@@ -1,4 +1,4 @@
-# --- Core Dashboard & Data Manipulation ---
+# --- Core Dashboard, Data Manipulation, and Base ML ---
 numpy
 pandas
 plotly
@@ -7,27 +7,18 @@ streamlit
 
 # --- Advanced AI/ML Libraries for Interactive Demonstrations ---
 
-# For Gradient Boosting Models (Tab 1)
-# High-performance, gradient boosting frameworks.
-lightgbm
+# For Gradient Boosting Models (XGBoost)
 xgboost
 
-# For Spatio-Temporal Forecasting (Tab 2)
-# A library for time series forecasting developed by Meta.
-# Note: Prophet may have additional system-level dependencies on some OS.
+# For Spatio-Temporal Forecasting (Prophet by Meta)
 prophet
 
-# For System Simulation (Tab 3)
-# A process-based discrete-event simulation framework.
+# For Discrete-Event System Simulation (SimPy)
 simpy
 
-# The following libraries are mentioned in the code's vision but are not
-# required for the current interactive demos. They are included here for
-# completeness of the future development environment.
-
-# For Reinforcement Learning
-#stable-baselines3
-
-# For Graph Neural Networks
-# Note: This will also install PyTorch as a dependency.
-#torch-geometric
+# For Graph Neural Networks (PyTorch and PyTorch Geometric)
+# It's often more reliable to install these manually if pip fails, e.g.:
+# pip install torch torchvision torchaudio
+# pip install torch-geometric
+torch
+torch-geometric
