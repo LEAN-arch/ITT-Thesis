@@ -368,7 +368,35 @@ class AIEvolutionPage(AbstractPage):
 
     def render_classifier_comparison_tab(self):
         st.header("Análisis Comparativo de Algoritmos de Clasificación")
-        st.markdown("Un análisis exhaustivo requiere la comparación del **Random Forest** con otros paradigmas de clasificación para validar su optimalidad.")
+        st.markdown("La validación de un modelo de Machine Learning requiere dos niveles de análisis: primero, una comparación con el **método existente (baseline)** para demostrar su impacto práctico; y segundo, una **comparación con otros algoritmos de vanguardia** para justificar la elección del modelo específico.")
+        
+        st.subheader("Impacto Operacional: Modelo de la Tesis vs. Estimación de API")
+        st.markdown("""
+        Esta primera comparación es la más importante, ya que contrasta el rendimiento del sistema **antes y después** de la innovación propuesta en la tesis. El rendimiento no se mide en precisión de laboratorio, sino en la métrica operacional clave: el **porcentaje de doble cobertura** alcanzado por el modelo de optimización RDSM.
+        - **Método de API (OSRM/Google Maps):** Utiliza algoritmos de enrutamiento (ej. Dijkstra, A*) sobre un grafo de carreteras con pesos basados en tráfico histórico y en tiempo real. Es un modelo de **regresión de caja negra** optimizado para consumidores, no para vehículos de emergencia. Como se demostró en la tesis, es un **estimador sesgado** que sobreestima sistemáticamente los tiempos de viaje.
+        - **Modelo de la Tesis (Random Forest Corregido):** Utiliza un **modelo híbrido de clasificación y corrección**. En lugar de predecir un tiempo de viaje, clasifica el *tipo de error* de la API y aplica una corrección basada en la mediana de esa clase. Este enfoque es más robusto a los valores atípicos y produce un **estimador insesgado**, lo que permite una optimización realista.
+        """)
+
+        df_impacto = pd.DataFrame({
+            'Método': ['Estimación de API (Sin Corregir)', 'Modelo de Tesis (Random Forest Corregido)'],
+            'Cobertura Doble (%)': [83.9, 100.0]
+        })
+        fig_impacto = px.bar(df_impacto, x='Método', y='Cobertura Doble (%)', 
+                             title='Impacto del Modelo de la Tesis en la Cobertura del Servicio',
+                             text_auto='.1f', color='Método', color_discrete_map={
+                                 'Estimación de API (Sin Corregir)': '#FF7F0E',
+                                 'Modelo de Tesis (Random Forest Corregido)': '#1F77B4'
+                             })
+        fig_impacto.update_layout(yaxis_title="Porcentaje de Doble Cobertura", showlegend=False)
+        st.plotly_chart(fig_impacto, use_container_width=True)
+        with st.expander("Significado de los Resultados"):
+            st.success("""
+            **El salto de 83.9% a 100% en la doble cobertura es la conclusión más poderosa de la tesis.** Demuestra que corregir el sesgo en los datos de entrada (tiempos de viaje) tiene un impacto directo y masivo en el resultado operacional. Un sistema con 100% de doble cobertura es **fundamentalmente más resiliente y confiable**, garantizando que casi siempre haya una segunda ambulancia disponible para cada emergencia, lo cual es crítico cuando la unidad más cercana está ocupada.
+            """)
+
+        st.subheader("Benchmark de Algoritmos de Clasificación de Vanguardia")
+        st.markdown("Una vez demostrado el impacto del enfoque, es una buena práctica científica comparar el algoritmo elegido (Random Forest) contra otras alternativas para asegurar que la elección fue robusta. Este benchmark se realiza sobre datos sintéticos para evaluar el rendimiento relativo en una tarea de clasificación estándar.")
+
         with st.expander("Metodologías y Fundamentos Matemáticos de los Clasificadores", expanded=True):
             st.markdown(r"""
             Para validar rigurosamente la elección del modelo de la tesis (Random Forest), se realiza un análisis comparativo contra un conjunto diverso de algoritmos de clasificación. Cada algoritmo representa una rama fundamental del aprendizaje automático y se basa en principios matemáticos distintos. Esto nos permite explorar la naturaleza del problema y la geometría del espacio de características.
@@ -433,15 +461,15 @@ class AIEvolutionPage(AbstractPage):
             st.markdown(r"""
             Entrenar un árbol para que se ajuste a estos residuos es una forma de realizar un descenso por gradiente en el espacio de las funciones.
             
-            **Justificación Científica:** LightGBM y XGBoost son consistentemente los modelos de mejor rendimiento para datos tabulares. Se incluyen para establecer un **límite superior de rendimiento práctico**. Su capacidad para manejar un gran número de características, su eficiencia (utilizan histogramas para encontrar los mejores splits) y su inclusión de regularización los convierten en candidatos extremadamente fuertes. Incluirlos a ambos permite contrastar las dos implementaciones más dominantes del gradient boosting.
+            **Justificación Científica:** LightGBM y XGBoost son consistentemente los modelos de mejor rendimiento para datos tabulares. Se incluyen para establecer un **límite superior de rendimiento práctico**. Su capacidad para manejar un gran número de características, su eficiencia (utilizan histogramas para encontrar los mejores splits) y su inclusión de regularización los convierten en candidatos extremadamente fuertes. Incluirlo a ambos permite contrastar las dos implementaciones más dominantes del gradient boosting.
             """)
         
-        if st.button("▶️ Entrenar y Comparar Clasificadores"):
+        if st.button("▶️ Ejecutar Benchmark de Clasificadores"):
             with st.spinner("Entrenando modelos... (la primera ejecución es lenta, las siguientes serán instantáneas)"):
                 df_results = train_and_evaluate_models()
             
             if df_results is not None:
-                st.subheader("Resultados de la Comparación")
+                st.subheader("Resultados del Benchmark")
                 fig = px.bar(df_results, x='Modelo', y='Accuracy', title='Comparación de Precisión de Clasificadores', text_auto='.3%')
                 st.plotly_chart(fig, use_container_width=True)
             else:
