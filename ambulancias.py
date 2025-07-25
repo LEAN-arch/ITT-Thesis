@@ -305,7 +305,8 @@ def train_and_evaluate_models():
     df['error_class'] = pd.qcut(df['error'], q=3, labels=['Subestimación', 'Error Pequeño', 'Sobreestimación'])
     
     X = df[['lat', 'lon', 'tiempo_api_minutos']]
-    y = df['error_class']
+    # THE FIX: Convert string labels to integer codes for universal model compatibility.
+    y = df['error_class'].cat.codes
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
     
