@@ -291,15 +291,32 @@ class OptimizationPage(AbstractPage):
 
 @st.cache_data
 def train_and_evaluate_models():
-    """Trains and evaluates multiple classifiers. Cached for performance."""
+    """Trains and evaluates multiple classifiers, now including a proper baseline for the 'API' method."""
     try:
         import lightgbm as lgb
         import xgboost as xgb
     except ImportError:
         return None
 
-    X, y = make_classification(n_samples=1000, n_features=15, n_informative=8, n_classes=3, random_state=42)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    # Use the app's base data to create a realistic classification problem
+    df, _ = load_base_data()
+    df['error'] = df['tiempo_api_minutos'] - df['tiempo_real_minutos']
+    # Discretize the error into 3 classes (e.g., Underestimation, Small Error, Overestimation)
+    df['error_class'] = pd.qcut(df['error'], q=3, labels=['Subestimación', 'Error Pequeño', 'Sobreestimación'])
+    
+    X = df[['lat', 'lon', 'tiempo_api_minutos']]
+    y = df['error_class']
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+    
+    # --- Calculate Baseline "API" Accuracy ---
+    # This represents a naive model that always predicts the most frequent error class,
+    # equivalent to using the API without a corrective model.
+    most_frequent_class = y_train.mode()[0]
+    baseline_predictions = [most_frequent_class] * len(y_test)
+    api_accuracy = accuracy_score(y_test, baseline_predictions)
+
+    # --- Train and Evaluate ML Models ---
     models = {
         "Logistic Regression": LogisticRegression(), "Gaussian Naive Bayes": GaussianNB(), "SVM": SVC(), 
         "Random Forest": RandomForestClassifier(random_state=42), 
@@ -307,8 +324,15 @@ def train_and_evaluate_models():
         "XGBoost": xgb.XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='mlogloss')
     }
     results = {name: accuracy_score(y_test, model.fit(X_train, y_train).predict(X_test)) for name, model in models.items()}
+    
+    # --- Combine all results ---
+    results['Método API (Baseline)'] = api_accuracy
     df_results = pd.DataFrame.from_dict(results, orient='index', columns=['Accuracy']).sort_values('Accuracy', ascending=False).reset_index()
+    
+    # Rename for clarity in the plot
     df_results.rename(columns={'index': 'Modelo'}, inplace=True)
+    df_results['Modelo'] = df_results['Modelo'].replace({'Random Forest': 'Modelo de Tesis (Random Forest)'})
+    
     return df_results
 
 @st.cache_data
