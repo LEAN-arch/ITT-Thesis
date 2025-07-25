@@ -41,7 +41,7 @@ def render_sidebar_info():
     """Renders the sidebar author and navigation info."""
     st.sidebar.title("🚑 Navegación")
     st.sidebar.markdown("""
-    **"Sistema de despacho para ambulancias de la ciudad de Tijuana"**
+    **"Sistema de despacho para ambulancias de la ciudad de Tijuana | Julio de 2022"**
     ---
     *Autora:* **M.C. Noelia Araceli Torres Cortés**
     *Institución:* **Tecnológico Nacional de México / ITT**
