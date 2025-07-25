@@ -465,13 +465,13 @@ class AIEvolutionPage(AbstractPage):
             """)
         
         if st.button("▶️ Ejecutar Benchmark de Clasificadores"):
-            with st.spinner("Entrenando modelos... (la primera ejecución es lenta, las siguientes serán instantáneas)"):
+            with st.spinner("Entrenando modelos y calculando baseline... (la primera ejecución es lenta, las siguientes serán instantáneas)"):
                 df_results = train_and_evaluate_models()
             
             if df_results is not None:
                 st.subheader("Resultados del Benchmark de Clasificadores")
                 # Add error bars for statistical context
-                n_test = 300 # Based on make_classification(1000) * test_size(0.3)
+                n_test = 150 # Based on 500 data points * 0.3 test_size
                 df_results['Error'] = np.sqrt(df_results['Accuracy'] * (1 - df_results['Accuracy']) / n_test)
 
                 fig_benchmark = px.bar(df_results,
@@ -479,25 +479,32 @@ class AIEvolutionPage(AbstractPage):
                                      y='Accuracy',
                                      error_y='Error',
                                      title='Comparación de Precisión de Clasificadores de Vanguardia',
-                                     labels={'Accuracy': 'Precisión del Clasificador (Accuracy)', 'Modelo': 'Algoritmo de Machine Learning'},
-                                     text_auto='.3f')
-                fig_benchmark.update_layout(yaxis=dict(range=[0.7, 1.0]), yaxis_tickformat=".1%")
+                                     labels={'Accuracy': 'Precisión del Clasificador (Accuracy)', 'Modelo': 'Algoritmo / Método'},
+                                     text_auto='.3f',
+                                     color='Modelo',
+                                     color_discrete_map={ # Highlight the key models
+                                         'Modelo de Tesis (Random Forest)': '#2CA02C',
+                                         'Método API (Baseline)': '#FF7F0E'
+                                     })
+                fig_benchmark.update_layout(yaxis=dict(range=[0, 1.0]), yaxis_tickformat=".1%", showlegend=False)
                 st.plotly_chart(fig_benchmark, use_container_width=True)
 
                 with st.expander("Análisis de los Resultados (Benchmark de Clasificadores)", expanded=True):
                     st.info("""
                     **Interpretación del Gráfico:**
-                    - Este gráfico compara directamente el rendimiento de los algoritmos en una tarea de clasificación controlada. El eje Y representa la **precisión (accuracy)**, no la cobertura del sistema.
-                    - **Modelos de Vanguardia (LightGBM, XGBoost, Random Forest):** Los modelos de ensamblaje basados en árboles (especialmente los de boosting) logran la mayor precisión. Esto es consistente con el estado del arte para datos tabulares.
-                    - **Elección de la Tesis (Random Forest):** Se puede observar que Random Forest es **altamente competitivo**, quedando muy cerca de los modelos de boosting y superando significativamente a SVM, Naive Bayes y Regresión Logística. Esto valida científicamente la elección de Random Forest como un componente robusto y de alto rendimiento para la metodología.
-                    - **Barras de Error:** Las pequeñas barras de error (error estándar de la proporción) dan una idea de la incertidumbre estadística en la medición de la precisión.
+                    - Este gráfico compara directamente el rendimiento de los algoritmos en una tarea de clasificación controlada. El eje Y representa la **precisión (accuracy)**, es una comparación de "manzanas con manzanas".
+
+                    - **Método API (Baseline - Naranja):** Este es nuestro punto de partida. Representa la precisión que obtendríamos si simplemente asumiéramos que el error de tiempo siempre será del tipo más común. Su baja precisión (~33% en este caso) demuestra que no tener un modelo de corrección es ineficaz y subraya la necesidad de una solución de ML.
+
+                    - **Modelo de Tesis (Random Forest - Verde):** Este es el modelo elegido en la investigación. Se puede observar que **mejora drásticamente** el rendimiento sobre el baseline, demostrando su valor. Además, es **altamente competitivo**, quedando muy cerca de los modelos de boosting y superando a los demás. Esto valida científicamente la elección de Random Forest como un componente robusto y de alto rendimiento.
+
+                    - **Otros Clasificadores (Azul):** Los modelos de Gradient Boosting (LightGBM, XGBoost) muestran el límite superior del rendimiento en esta tarea, mientras que modelos más simples como Regresión Logística y Naive Bayes muestran un rendimiento intermedio.
 
                     **Conclusión Científica Clave:**
-                    La lección más importante es que **el objetivo no es simplemente elegir el modelo con la puntuación más alta en un benchmark**. El verdadero avance de la tesis fue **formular el problema correctamente** (clasificación + corrección). Este benchmark demuestra que la herramienta elegida para esa formulación (Random Forest) era una excelente y justificada elección, ya que su rendimiento es comparable al de los mejores algoritmos disponibles.
+                    Este benchmark logra dos objetivos: **1)** Cuantifica el inmenso valor de usar un modelo de ML (como el Modelo de Tesis) sobre el enfoque ingenuo (el baseline de la API). **2)** Demuestra que el algoritmo específico elegido (Random Forest) fue una excelente y justificada elección, ya que su rendimiento es comparable al de los mejores algoritmos disponibles.
                     """)
             else:
                 st.error("Por favor instale las librerías avanzadas: pip install lightgbm xgboost")
-
     def render_umap_tab(self):
         st.header("Metodología Propuesta: Reducción de Dimensionalidad Topológica con UMAP")
         st.markdown("""
