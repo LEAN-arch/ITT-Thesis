@@ -306,8 +306,9 @@ def train_and_evaluate_models():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
     
     # --- Calculate Baseline "API" Accuracy ---
-    # This represents a naive model that always predicts the most frequent error class.
-    most_frequent_class = y_train.mode()[0]
+    # THE FIX: Convert the y_train numpy array to a pandas Series to use the .mode() method.
+    most_frequent_class = pd.Series(y_train).mode()[0]
+    
     baseline_predictions = [most_frequent_class] * len(y_test)
     api_accuracy = accuracy_score(y_test, baseline_predictions)
 
