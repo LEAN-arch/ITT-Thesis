@@ -284,6 +284,116 @@ class OptimizationPage(AbstractPage):
             st.markdown("""
             El resultado más significativo de la tesis es el **salto del 83.9% al 100% en la doble cobertura**. Esto valida cuantitativamente la hipótesis central de la investigación: **la calidad de los parámetros de entrada ($t_{ij}$) de un modelo de optimización es tan o más importante que la sofisticación del propio modelo de optimización.** Al corregir el sesgo sistemático de los tiempos de viaje, se permite al modelo RDSM encontrar una solución genuinamente óptima que es robusta y efectiva en el mundo real.
             """)
+# =================================================================================================================================================================
+# =========================================================================================================================================================================================================================================================
+class MetricsPage(AbstractPage):
+    def render(self) -> None:
+        super().render()
+        st.markdown("""
+        Esta sección profundiza en las métricas cruciales para evaluar un sistema de despacho de emergencias. Se desglosan tanto las métricas operacionales que miden el impacto en el mundo real como las métricas de componentes que validan los modelos de IA subyacentes. Cada métrica se presenta con su fundamento matemático y su relevancia estratégica.
+        """)
+
+        #======================================================================
+        st.header("1. Métricas Operacionales: Midiendo el Impacto Real")
+        #======================================================================
+        st.markdown("Estas métricas evalúan el rendimiento global del sistema y son los indicadores de éxito finales.")
+
+        with st.expander("Expandir: Cobertura Doble (Métrica de Robustez Estratégica)", expanded=True):
+            st.markdown("""
+            **Definición Formal:** La Cobertura Doble es el porcentaje de la demanda total que puede ser alcanzada por **al menos dos** ambulancias distintas desde sus bases de origen dentro de un umbral de tiempo de respuesta predefinido, $T_{crit}$. Es la métrica principal del modelo de optimización de la tesis.
+            
+            **Fundamento Matemático:**
+            Sea $I$ el conjunto de puntos de demanda y $J_{sol}$ el conjunto de ubicaciones de bases seleccionadas por el modelo de optimización ($|J_{sol}| = P$). Sea $a_{ij}$ una variable binaria que indica si la base $j \in J_{sol}$ cubre el punto de demanda $i \in I$.
+            """)
+            st.latex(r''' a_{ij} = \begin{cases} 1 & \text{si el tiempo de viaje } t_{ij} \le T_{crit} \\ 0 & \text{en caso contrario} \end{cases} ''')
+            st.markdown(r"""
+            La cobertura doble, $C_2$, se formula como el promedio de una función indicadora sobre todos los puntos de demanda:
+            """)
+            st.latex(r''' C_2 = \frac{1}{|I|} \sum_{i \in I} \mathbb{I}\left(\sum_{j \in J_{sol}} a_{ij} \ge 2\right) \times 100\% ''')
+            st.markdown(r"""
+            Donde $\mathbb{I}(\cdot)$ es la función indicadora, que vale 1 si la condición interna (la suma de bases que cubren es mayor o igual a 2) es verdadera, y 0 si es falsa.
+            
+            **Significado y Relevancia Estratégica (SME):**
+            La Cobertura Doble es la métrica de **resiliencia y robustez del sistema** por excelencia. En un entorno caótico como los servicios de emergencia, la ambulancia teóricamente más cercana a una nueva llamada suele estar ocupada en otra emergencia. Un sistema optimizado para cobertura *simple* es frágil y falla en este escenario común. Al optimizar para la doble cobertura, se garantiza que para la gran mayoría de las emergencias exista una **segunda unidad de respuesta rápida**, lo que aumenta drásticamente la probabilidad de una atención oportuna y reduce la fragilidad del sistema. El salto del **83.9% al 100%** demostrado en la tesis no es solo una mejora numérica, sino una transformación fundamental hacia un sistema a prueba de fallos, que es el objetivo final de la planificación estratégica en SME.
+            """)
+
+        with st.expander("Expandir: Percentil 90 del Tiempo de Respuesta (Métrica de Equidad)", expanded=False):
+            st.markdown("""
+            **Definición Formal:** El valor del tiempo de respuesta por debajo del cual se encuentra el 90% de todas las llamadas atendidas. Si el P90 es de 15 minutos, significa que 9 de cada 10 llamadas son atendidas en 15 minutos o menos, mientras que el 10% de los casos (los peores) tardan más.
+
+            **Fundamento Matemático:**
+            Dado un conjunto de $N$ tiempos de respuesta observados, $\{T_1, T_2, \dots, T_N\}$, se ordenan de menor a mayor para obtener la serie de estadísticas de orden $T_{(1)} \le T_{(2)} \le \dots \le T_{(N)}$. El percentil 90 (P90) se encuentra en el rango (índice) $k = \lceil 0.9 \times N \rceil$. El valor de la métrica es $T_{(k)}$.
+            
+            **Significado y Relevancia Estratégica (SME):**
+            Esta es la métrica de **equidad y justicia social** más importante para un servicio público. Un sistema que solo optimiza el *promedio* del tiempo de respuesta puede ser brillante para la mayoría pero terrible para una minoría, creando "desiertos de servicio" en zonas rurales, de difícil acceso o marginadas. Enfocarse en reducir el P90 obliga al sistema a mejorar su rendimiento para los casos más desfavorecidos. Para los reguladores, los políticos y los ciudadanos, esta métrica es a menudo más significativa que el promedio, ya que representa una garantía de un nivel mínimo de servicio para todos, reflejando el principio de acceso universal a la atención de emergencia.
+            """)
+
+        with st.expander("Expandir: Utilización de Unidades (Métrica de Eficiencia y Sostenibilidad)", expanded=False):
+            st.markdown(r"""
+            **Definición Formal:** El porcentaje de tiempo que una unidad (ambulancia) está en servicio activo (despachada, en escena, transportando o preparándose) en comparación con el tiempo total de su turno.
+            
+            **Fundamento Matemático (Teoría de Colas):**
+            En un sistema de colas M/G/c (llegadas Markovianas, tiempo de servicio General, c servidores), la utilización ($\rho$) se define como la tasa media de llegada de llamadas ($\lambda$) dividida por la tasa de servicio total del sistema, que es el número de servidores ($c$) multiplicado por la tasa de servicio media de una sola unidad ($\mu$).
+            """)
+            st.latex(r''' \rho = \frac{\lambda}{c \mu} ''')
+            st.markdown(r"""
+            Un valor de $\rho \ge 1$ implica un sistema inestable donde la cola de espera teóricamente crece hasta el infinito.
+            
+            **Significado y Relevancia Estratégica (SME):**
+            La utilización es una métrica de **salud y sostenibilidad del sistema**. Una utilización baja (<20%) puede indicar una sobreinversión de recursos o una mala distribución. Por el contrario, una utilización crónicamente alta (>50-60%) es una señal de alerta crítica que predice:
+            1.  **Agotamiento del Personal (Burnout):** Los equipos no tienen tiempo de recuperación física o mental entre llamadas.
+            2.  **Fragilidad del Sistema:** No hay unidades de reserva disponibles para incidentes con múltiples víctimas (MCI) o picos de demanda inesperados.
+            3.  **Tiempos de Espera Exponenciales:** La teoría de colas demuestra que a medida que $\rho$ se acerca a 1, los tiempos de espera en cola aumentan de forma no lineal y explosiva.
+            Es una métrica de equilibrio: se busca una utilización que sea financieramente eficiente sin poner en riesgo al personal ni la capacidad de respuesta del sistema.
+            """)
+
+        #======================================================================
+        st.header("2. Métricas de Componentes: Validando los Modelos de IA")
+        #======================================================================
+        st.markdown("Estas métricas se utilizan para validar la calidad de los modelos de Machine Learning que alimentan el sistema de optimización.")
+
+        with st.expander("Expandir: Matriz de Confusión (Métrica de Diagnóstico)", expanded=False):
+            st.markdown(r"""
+            **Definición Formal:** Una tabla que desglosa el rendimiento de un modelo de clasificación al comparar las clases reales con las clases predichas. Para un problema de $K$ clases, es una matriz $M$ de tamaño $K \times K$, donde la entrada $M_{ij}$ contiene el número de observaciones que pertenecen a la clase real $i$ pero fueron clasificadas como clase $j$.
+
+            **Fundamento Matemático:**
+            A partir de esta matriz se definen los cuatro resultados básicos para cualquier clase de interés (considerada "Positiva"):
+            - **Verdaderos Positivos (TP):** $M_{ii}$. Predicciones correctas de la clase positiva.
+            - **Falsos Negativos (FN):** $\sum_{j \ne i} M_{ij}$. Casos de la clase positiva que fueron incorrectamente predichos como otra clase.
+            - **Falsos Positivos (FP):** $\sum_{j \ne i} M_{ji}$. Casos de otras clases que fueron incorrectamente predichos como la clase positiva.
+            - **Verdaderos Negativos (TN):** La suma de todos los elementos de la matriz que no están en la fila o columna de la clase de interés.
+            
+            **Significado y Relevancia Estratégica (SME):**
+            La Matriz de Confusión es la herramienta de **diagnóstico de errores** más importante. Mientras que la `Accuracy` te dice *si* el modelo es bueno, la matriz te dice *cómo* es bueno o malo. Permite responder preguntas críticas:
+            - *¿Existe un sesgo sistemático?* ¿El modelo tiende a predecir una clase más que otras?
+            - *¿Cuáles son los errores más comunes?* ¿Confunde el modelo la "Sobreestimación" con el "Error Pequeño", o comete errores más graves?
+            Si el coste de un Falso Negativo (ej. no predecir un error de tiempo grande que lleve a enviar una ambulancia lejana) es mucho mayor que el de un Falso Positivo, esta matriz es la única forma de evaluar y mitigar ese riesgo específico.
+            """)
+        
+        with st.expander("Expandir: Accuracy, Precision, Recall y F1-Score (Métricas de Rendimiento)", expanded=False):
+            st.markdown(r"""
+            Estas métricas se derivan directamente de los valores TP, TN, FP y FN de la Matriz de Confusión para una clase de interés.
+            
+            **1. Accuracy (Exactitud Global):**
+            - **Definición:** La proporción de predicciones correctas sobre el total de predicciones.
+            - **Fórmula:** $\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}$
+            - **Significado:** Es una métrica general útil solo cuando las clases están **balanceadas** y los costes de los errores son simétricos. Puede ser muy engañosa en escenarios desbalanceados (ej. un modelo que detecta una enfermedad rara con 99% de accuracy porque siempre predice "sano").
+            
+            **2. Precision (Precisión de la Predicción):**
+            - **Definición:** De todas las veces que el modelo predijo "Positivo", ¿qué proporción fue correcta? Mide la fiabilidad de las predicciones positivas.
+            - **Fórmula:** $\text{Precision} = \frac{TP}{TP + FP}$
+            - **Significado:** Es crucial cuando el coste de un **Falso Positivo** es alto. Por ejemplo, en un sistema de diagnóstico de cáncer, una baja precisión significaría realizar muchas biopsias innecesarias (alto coste, estrés para el paciente). En nuestro caso, podría significar activar un protocolo de "alerta roja" innecesariamente.
+
+            **3. Recall (Sensibilidad o Tasa de Verdaderos Positivos):**
+            - **Definición:** De todos los casos que eran realmente "Positivos", ¿qué proporción detectó el modelo? Mide la exhaustividad del modelo.
+            - **Fórmula:** $\text{Recall} = \frac{TP}{TP + FN}$
+            - **Significado:** Es crucial cuando el coste de un **Falso Negativo** es alto. Para el cáncer, un bajo recall significaría no detectar la enfermedad en pacientes que sí la tienen (consecuencias fatales). En nuestro sistema, no identificar un viaje con un error de tiempo masivo podría resultar en una decisión de despacho catastrófica.
+            
+            **4. F1-Score (Equilibrio entre Precision y Recall):**
+            - **Definición:** La media armónica de Precision y Recall.
+            - **Fórmula:** $F_1 = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}} = \frac{2TP}{2TP + FP + FN}$
+            - **Significado:** Es la métrica de elección para evaluar el rendimiento en **clases desbalanceadas**, ya que penaliza fuertemente a los modelos que logran una alta precisión a costa de un bajo recall, o viceversa. Un F1-Score alto indica que el modelo ha encontrado un equilibrio excelente entre ser fiable en sus predicciones y no omitir casos importantes.
+            """)
 
 # ==============================================================================
 # AI EVOLUTION PAGE (WITH OPTIMIZATIONS)
@@ -777,6 +887,7 @@ def main():
     render_sidebar_info()
     pages = {
         "Resumen de la Tesis": ThesisSummaryPage("Resumen de la Tesis", "📜"),
+        "Métricas y Evaluación": MetricsPage("Métricas y Evaluación", "📐"), 
         "Calibración del Modelo de Tiempos": TimeCorrectionPage("Calibración del Modelo", "⏱️"),
         "Clustering de Demanda": ClusteringPage("Clustering de Demanda", "📊"),
         "Optimización de Ubicaciones": OptimizationPage("Optimización de Ubicaciones", "📍"),
